@@ -1,0 +1,40 @@
+{
+    "SpotInstanceRequests": [
+        {
+            "Status": {
+                "Message": "Your Spot request has been submitted for review, and is pending evaluation.",
+                "Code": "pending-evaluation",
+                "UpdateTime": "2018-02-04T19:30:12.000Z"
+            },
+            "ProductDescription": "Linux/UNIX",
+            "InstanceInterruptionBehavior": "terminate",
+            "SpotInstanceRequestId": "sir-hj5r4gkh",
+            "State": "open",
+            "LaunchSpecification": {
+                "Placement": {
+                    "AvailabilityZone": "us-east-1c"
+                },
+                "ImageId": "ami-428aa838",
+                "SubnetId": "subnet-ed0b6988",
+                "KeyName": "vince-demyst",
+                "SecurityGroups": [
+                    {
+                        "GroupName": "spoptimize-asgs-instance",
+                        "GroupId": "sg-1076c567"
+                    }
+                ],
+                "EbsOptimized": false,
+                "Monitoring": {
+                    "Enabled": true
+                },
+                "IamInstanceProfile": {
+                    "Arn": "arn:aws:iam::123456789012:instance-profile/base-ec2"
+                },
+                "InstanceType": "t2.micro"
+            },
+            "Type": "one-time",
+            "CreateTime": "2018-02-04T19:30:12.000Z",
+            "SpotPrice": "0.011600"
+        }
+    ]
+}

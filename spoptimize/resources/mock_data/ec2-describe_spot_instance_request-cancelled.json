@@ -1,0 +1,43 @@
+{
+    "SpotInstanceRequests": [
+        {
+            "Status": {
+                "Message": "Your Spot request is canceled, but your instance i-0b084597faef3638e is still running.",
+                "Code": "request-canceled-and-instance-running",
+                "UpdateTime": "2018-02-04T20:12:14.000Z"
+            },
+            "ProductDescription": "Linux/UNIX",
+            "ValidUntil": "2018-02-11T19:30:12.000Z",
+            "InstanceId": "i-0b084597faef3638e",
+            "InstanceInterruptionBehavior": "terminate",
+            "SpotInstanceRequestId": "sir-hj5r4gkh",
+            "State": "cancelled",
+            "LaunchedAvailabilityZone": "us-east-1c",
+            "LaunchSpecification": {
+                "Placement": {
+                    "AvailabilityZone": "us-east-1c"
+                },
+                "ImageId": "ami-428aa838",
+                "SubnetId": "subnet-bbbbbbbb",
+                "KeyName": "vince",
+                "SecurityGroups": [
+                    {
+                        "GroupName": "spoptimize-asgs-instance",
+                        "GroupId": "sg-cccccccc"
+                    }
+                ],
+                "EbsOptimized": false,
+                "Monitoring": {
+                    "Enabled": true
+                },
+                "IamInstanceProfile": {
+                    "Arn": "arn:aws:iam::123456789012:instance-profile/base-ec2"
+                },
+                "InstanceType": "t2.micro"
+            },
+            "Type": "one-time",
+            "CreateTime": "2018-02-04T19:30:12.000Z",
+            "SpotPrice": "0.011600"
+        }
+    ]
+}

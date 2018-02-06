@@ -1,0 +1,13 @@
+{
+  "SignatureVersion": "1",
+  "Timestamp": "2018-02-03T20:12:29.534Z",
+  "Signature": "PZkk84QcpBHomMPfW4m8pm9KEtEbpOfGtKlPiHhnTYin7U+JKjy2Nki+plVc2S72CHNCgYSbUEEWdfoqFPzDmF/ePgDxvUWYBzUvhhY0dMqjLK46TIjBCNA852XqEIDXPzeHxOqomzTOauG7ujg292xH7by2mKSMyI6FBnWw7ICvXVFmlQCCL33iw68CODy3pCQQOAHU/t5C+Tac/I0Hj5YFxJFzVRQVfehtnNl4ExoXj8nWaq+NDoqeNTxQM21r70iHheqqsg2PHnrR2KjssMiAI0Fzp+3rXw8xnFJPF/S9kEDjvYdO13spl5XWond0bkoAp4TAQxdfhc2qthcVgg==",
+  "SigningCertUrl": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-433026a4050d206028891664da859041.pem",
+  "MessageId": "37ea089d-d45b-57f1-9654-5a6dcdb62b86",
+  "Message": "{\"Progress\":50,\"AccountId\":\"123456789012\",\"Description\":\"Launching a new EC2 instance: i-0da65ea880c45a545\",\"RequestId\":\"8f958575-2ffc-bf84-5f93-597b9165088f\",\"EndTime\":\"2018-02-03T20:12:29.450Z\",\"AutoScalingGroupARN\":\"arn:aws:autoscaling:us-east-1:123456789012:autoScalingGroup:724b4acf-0b61-4235-8757-73a3fb5f6f03:autoScalingGroupName/spoptimize-asgs-LaunchGroupOD-HWZF4JML296X\",\"ActivityId\":\"8f958575-2ffc-bf84-5f93-597b9165088f\",\"StartTime\":\"2018-02-03T20:11:57.103Z\",\"Service\":\"AWS Auto Scaling\",\"Time\":\"2018-02-03T20:12:29.450Z\",\"EC2InstanceId\":\"i-0da65ea880c45a545\",\"StatusCode\":\"InProgress\",\"StatusMessage\":\"\",\"Details\":{\"Subnet ID\":\"subnet-11111111\",\"Availability Zone\":\"us-east-1f\"},\"AutoScalingGroupName\":\"spoptimize-asgs-LaunchGroupOD-HWZF4JML296X\",\"Cause\":\"At 2018-02-03T20:11:49Z a user request update of AutoScalingGroup constraints to min: 0, max: 12, desired: 1 changing the desired capacity from 0 to 1.  At 2018-02-03T20:11:55Z an instance was started in response to a difference between desired and actual capacity, increasing the capacity from 0 to 1.\",\"Event\":\"autoscaling:EC2_INSTANCE_LAUNCH\"}",
+  "MessageAttributes": {},
+  "Type": "Notification",
+  "UnsubscribeUrl": "https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-1:123456789012:sns-to-s3:62b12d76-43ef-4dc4-b4ac-23d7a550fa19",
+  "TopicArn": "arn:aws:sns:us-east-1:123456789012:sns-to-s3",
+  "Subject": "Auto Scaling: launch for group \"spoptimize-asgs-LaunchGroupOD-HWZF4JML296X\""
+}

@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: IAM Resources for Spoptimize
+
+Parameters:
+  RolePath:
+    Description: Path to pass to IAM resources
+    Type: String
+    Default: /
+
+Resources:
+
+  StateMachineManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: IAM Policy for Spoptimize State Machine
+      Path: !Ref RolePath
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: InvokeLambda
+            Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource: !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:spoptimize*"
+
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-state-machine"
+      Path: !Ref RolePath
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: states.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - !Ref StateMachineManagedPolicy
+
+  LambdaManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: IAM Policy for Spoptimize Lambdas
+      Path: !Ref RolePath
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: AutoScaling
+          Effect: Allow
+          Action:
+            - autoscaling:Describe*
+            - autoscaling:SetDesiredCapacity
+            - autoscaling:AttachInstances
+            - autoscaling:TerminateInstanceInAutoScalingGroup
+            #- autoscaling:DetachInstances
+          Resource: "*"
+        - Sid: SpotRequests
+          Effect: Allow
+          Action:
+            #- ec2:RunInstances
+            - ec2:CancelSpotInstanceRequests
+            - ec2:CreateTags
+            - ec2:DescribeSpotInstanceRequests
+            - ec2:DescribeSpotPriceHistory
+            - ec2:DescribeTags
+            - ec2:RequestSpotInstances
+          Resource: "*"
+        - Sid: PassEc2IamRole
+          Effect: Allow
+          Action: iam:PassRole
+          # TODO
+          Resource: "*"
+
+  LambdaExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-lambda-role"
+      Path: !Ref RolePath
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - !Ref LambdaManagedPolicy
+
+Outputs:
+  StateMachineManagedPolicy:
+    Description: ARN of State Machine Managed Policy
+    Value: !Ref StateMachineManagedPolicy
+  StateMachineRoleArn:
+    Description: ARN of State Machine IAM Role
+    Value: !GetAtt StateMachineRole.Arn
+  LambdaManagedPolicy:
+    Description: ARN of Lambda Managed Policy
+    Value: !Ref LambdaManagedPolicy
+  LambdaRoleArn:
+    Description: ARN of State Machine IAM Role
+    Value: !GetAtt LambdaExecRole.Arn
