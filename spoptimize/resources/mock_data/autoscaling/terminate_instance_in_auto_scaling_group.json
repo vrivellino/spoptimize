@@ -3,7 +3,7 @@
         "Description": "Terminating EC2 instance: i-074b548fd3c566457", 
         "AutoScalingGroupName": "spoptimize-asgs-LaunchGroupOD-HWZF4JML296X", 
         "ActivityId": "b31585b3-587b-ab13-5feb-e2742c658fbd", 
-        "Details": "{\"Subnet ID\":\"subnet-342c7c1c\",\"Availability Zone\":\"us-east-1d\"}", 
+        "Details": "{\"Subnet ID\":\"subnet-22222222\",\"Availability Zone\":\"us-east-1d\"}", 
         "StartTime": "2018-02-06T20:37:07.434Z", 
         "Progress": 0, 
         "Cause": "At 2018-02-06T20:37:07Z instance i-074b548fd3c566457 was taken out of service in response to a user request, shrinking the capacity from 2 to 1.", 

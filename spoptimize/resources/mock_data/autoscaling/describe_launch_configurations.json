@@ -13,7 +13,7 @@
             "BlockDeviceMappings": [],
             "KeyName": "vince",
             "SecurityGroups": [
-                "sg-1076c567"
+                "sg-cccccccc"
             ],
             "LaunchConfigurationName": "spoptimize-asgs-LaunchConfigOD-10Y5NXG6WOBRQ",
             "KernelId": "",

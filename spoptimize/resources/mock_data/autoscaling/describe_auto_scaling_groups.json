@@ -86,7 +86,7 @@
                 }
             ],
             "MaxSize": 12,
-            "VPCZoneIdentifier": "subnet-b852deb4,subnet-342c7c1c",
+            "VPCZoneIdentifier": "subnet-11111111,subnet-22222222",
             "HealthCheckGracePeriod": 300,
             "TerminationPolicies": [
                 "Default"
