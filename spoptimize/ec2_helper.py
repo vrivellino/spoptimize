@@ -1,13 +1,11 @@
 import boto3
-# import json
-import logging
 import os
-# import re
+
+from logging_helper import logging
 
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
 
@@ -18,9 +16,8 @@ mocks_dir = os.path.join(here, 'resources', 'mock_data')
 ec2 = boto3.client('ec2')
 
 
-def term_instance(instance_id, mock=False):
-    if mock:
-        return
+def terminate_instance(instance_id):
+    logger.info('Terminating EC2 Instance {}'.format(instance_id))
     try:
         ec2.terminate_instances(InstanceIds=[instance_id])
     except ClientError as c:
@@ -29,9 +26,8 @@ def term_instance(instance_id, mock=False):
         raise
 
 
-def tag_instance(instance_id, resource_tags, mock=False):
+def tag_instance(instance_id, resource_tags):
+    logger.info('Tagging EC2 instance {0} with {1}'.format(instance_id, resource_tags))
     if not resource_tags:
-        return
-    if mock:
         return
     ec2.create_tags(Resources=[instance_id], Tags=resource_tags)
