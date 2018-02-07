@@ -146,32 +146,60 @@ Resources:
                 "Default": "Attach Spot Before Term OnDemand"
               },
               "AutoScaling Group Disappeared": {
-                "Type": "Succeed"
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-spot-instance-${Mode}",
+                "End": true,
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 5
+                }]
               },
               "Term OnDemand Before Attach Spot": {
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-ondemand-attach-spot-${Mode}",
-                "Next": "Term OnDemand Before Attach Spot Success",
+                "OutputPath": "$.spot_attach_result",
+                "Next": "Check Attachment?",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 10,
                   "MaxAttempts": 3,
                   "BackoffRate": 5
                 }]
-              },
-              "Term OnDemand Before Attach Spot Success": {
-                "Type": "Succeed"
               },
               "Attach Spot Before Term OnDemand": {
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-attach-spot-${Mode}",
-                "Next": "Wait for Attachment",
+                "OutputPath": "$.spot_attach_result",
+                "Next": "Check Attachment?",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 10,
                   "MaxAttempts": 3,
                   "BackoffRate": 5
                 }]
+              },
+              "Check Attachment?": {
+                "Type": "Choice",
+                "Choices": [{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "AutoScaling group not sized correctly",
+                  "Next": "AutoScaling Group Disappeared"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "Auto-Scaling Group Disappeared",
+                  "Next": "AutoScaling Group Disappeared"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "Instance missing",
+                  "Next": "Sleep after Failed Spot Request"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "Invalid instance",
+                  "Next": "Sleep after Failed Spot Request"
+                }],
+                "Default": "Wait for Attachment"
               },
               "Wait for Attachment": {
                 "Type": "Wait",

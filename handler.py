@@ -78,19 +78,13 @@ def spot_instance_healthy(event, context):
     return spoptimize.asg_instance_state(event['spot_request_result'], mock=mock_mode)
 
 
-def asg_instance_healthy(event, context):
+def term_asg_instance(event, context):
     print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    if environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false':
-        print('MOCK MODE: Instance Healthy')
-        return 'Healthy'
-    # TODO
-    raise Exception('Active mode not supported')
+    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
+    return spoptimize.terminate_asg_instance(event['ondemand_instance_id'], mock=mock_mode)
 
 
-def terminate_instance(event, context):
+def term_spot_instance(event, context):
     print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    if environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false':
-        print('MOCK MODE: Instance Terminated')
-        return 'SUCCESS'
-    # TODO
-    raise Exception('Active mode not supported')
+    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
+    return spoptimize.terminate_ec2_instance(event.get('spot_request_result'), mock=mock_mode)

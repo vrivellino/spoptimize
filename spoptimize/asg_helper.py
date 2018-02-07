@@ -4,7 +4,7 @@ import logging
 import os
 import re
 
-# from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -68,3 +68,33 @@ def get_instance_status(instance_id, mock=False):
         return 'Healthy'
     # else return Pending ...
     return 'Pending'
+
+
+def terminate_instance(instance_id, decrement_cap, mock=False):
+    if mock:
+        return
+    try:
+        autoscaling.terminate_instance_in_auto_scaling_group(
+            InstanceId=instance_id, ShouldDecrementDesiredCapacity=decrement_cap)
+    except ClientError as c:
+        if re.march(r'not found', c.response['Error']['Message']):
+            pass
+        raise
+
+
+def attach_instance(asg_name, instance_id, mock=False):
+    if mock:
+        return
+    try:
+        autoscaling.attach_instances(InstanceIds=[instance_id], AutoScalingGroupName=asg_name)
+    except ClientError as c:
+        if re.match(r'please update the AutoScalingGroup sizes appropriately', c.response['Error']['Message']):
+            return 'AutoScaling group not sized correctly'
+        if re.match(r'AutoScalingGroup name not found', c.response['Error']['Message']):
+            return 'Auto-Scaling Group Disappeared'
+        if re.match(r'Instance .* is not in correct state', c.response['Error']['Message']):
+            return 'Instance missing'
+        if re.match(r'Invalid Instance ID', c.response['Error']['Message']):
+            return 'Invalid instance'
+        raise
+    return 'Success'

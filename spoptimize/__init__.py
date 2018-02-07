@@ -75,12 +75,10 @@ def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id, moc
     '''
     asg = asg_helper.describe_asg(asg_dict['AutoScalingGroupName'], mock)
     if not asg:
-        # TODO
         ec2_helper.term_instance(spot_instance_id, mock=mock)
         return 'AutoScaling Group Disappeared'
-    resource_tags = [x for x in asg['Tags']
+    resource_tags = [{'Key': x['Key'], 'Value': x['Value']} for x in asg['Tags']
                      if x.get('PropagateAtLaunch', False) and x.get('Key', '').split(':')[0] != 'aws']
-    # TODO
     if not ec2_helper.tag_instance(spot_instance_id, resource_tags, mock=mock):
         return 'Spot Instance Disappeared'
     if asg_helper.get_instance_status(ondemand_instance_id, mock=mock) != 'Health':
@@ -92,11 +90,15 @@ def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id, moc
 
 def attach_spot_instance(asg_dict, spot_instance_id, ondemand_instance_id=None, mock=False):
     if ondemand_instance_id:
-        # TODO
         asg_helper.terminate_instance(ondemand_instance_id, decrement_cap=True)
     # TODO
-    return asg_helper.attach_spot_instance(asg_dict['AutoScalingGroupName'], spot_instance_id, mock=mock)
+    return asg_helper.attach_instance(asg_dict['AutoScalingGroupName'], spot_instance_id, mock=mock)
 
 
-def terminate_instance(instance_id, mock=False):
+def terminate_asg_instance(instance_id, mock=False):
     return asg_helper.terminate_instance(instance_id, decrement_cap=True)
+
+
+def terminate_ec2_instance(instance_id, mock=False):
+    if instance_id:
+        return ec2_helper.term_instance(instance_id, decrement_cap=True)

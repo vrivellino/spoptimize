@@ -35,7 +35,7 @@ for opt in "$@"; do
             do_lambda=True
             ;;
         *)
-            echo "Usage: $(basename "$0") [iam|state-machine|lambda|all]" >&2
+            echo "Usage: $(basename "$0") [iam|state-machine|lambda|mock|all]" >&2
             exit 1
     esac
 
