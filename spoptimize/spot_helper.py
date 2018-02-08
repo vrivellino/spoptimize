@@ -2,12 +2,10 @@ import boto3
 import json
 import logging
 import os
-# import re
 
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
 
@@ -19,6 +17,8 @@ ec2 = boto3.client('ec2')
 
 
 def gen_launch_specification(launch_config, avail_zone, subnet_id):
+    logger.debug('Converting asg launch config to ec2 launch spec')
+    logger.debug('Launch Config: {}'.format(json.dumps(launch_config, indent=2)))
     spot_launch_specification = {
         'SubnetId': subnet_id,
         'Placement': {
@@ -41,36 +41,37 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
         spot_launch_specification['SecurityGroupIds'] = launch_config['SecurityGroups']
     if launch_config.get('InstanceMonitoring'):
         spot_launch_specification['Monitoring'] = {
-            'Enabled': launch_config['InstanceMonitoring'].get('Enabled', 'false')
+            'Enabled': launch_config['InstanceMonitoring'].get('Enabled', False)
         }
+    logger.debug('Launch Specification: {}'.format(json.dumps(spot_launch_specification, indent=2)))
+    return spot_launch_specification
 
 
-def request_spot_instance(client_token, launch_config, avail_zone, subnet_id, mock=False):
+def request_spot_instance(launch_config, avail_zone, subnet_id, client_token):
+    logger.info('Requesting spot instance in {0}/{1}'.format(avail_zone, subnet_id))
     launch_spec = gen_launch_specification(launch_config, avail_zone, subnet_id)
-    if mock:
-        resp = json.loads(os.path.join(mocks_dir, 'ec2-request_spot_instances.json'))
-        resp['SpotInstanceRequests'][0]['LaunchSpecification'] = launch_spec.copy()
-    else:
-        resp = ec2.request_spot_instances(InstanceCount=1, LaunchSpecification=launch_spec,
-                                          Type='one-time', ClientToken=client_token)
+    resp = ec2.request_spot_instances(InstanceCount=1, LaunchSpecification=launch_spec,
+                                      Type='one-time', ClientToken=client_token)
+    logger.debug('Spot request response: {}'.format(resp))
     return resp['SpotInstanceRequests'][0]
 
 
-def get_spot_request_status(spot_request_id, mock=False):
-    if mock:
-        resp = json.loads(os.path.join(mocks_dir, 'ec2-describe_spot_instance_request.json'))
-        resp['SpotInstanceRequests'] = [x for x in resp['SpotInstanceRequests']
-                                        if x['SpotInstanceRequestId'] == spot_request_id]
-    else:
-        try:
-            resp = ec2.describe_spot_instance_requests(SpotInstanceRequestIds=[spot_request_id])
-        except ClientError as c:
-            if c.response['Error']['Code'] == 'InvalidSpotInstanceRequestID.NotFound':
-                return 'Failure'
-            raise
+def get_spot_request_status(spot_request_id):
+    logger.debug('Checking status of spot request {}'.format(spot_request_id))
+    try:
+        resp = ec2.describe_spot_instance_requests(SpotInstanceRequestIds=[spot_request_id])
+    except ClientError as c:
+        if c.response['Error']['Code'] == 'InvalidSpotInstanceRequestID.NotFound':
+            logger.info('Spot instance request {} does not exist'.format(spot_request_id))
+            return 'Failure'
+        raise
+    # logger.debug('Spot request status response: {}'.format(resp))
     spot_request = resp['SpotInstanceRequests'][0]
     if spot_request.get('State', '') == 'active' and spot_request.get('InstanceId'):
+        logger.info('Spot instance request {0} is active: {1}'.format(spot_request_id, spot_request['InstanceId']))
         return spot_request['InstanceId']
     if spot_request.get('State', 'unknown') in ['closed', 'cancelled', 'failed']:
+        logger.info('Spot instance request {0} is {1}'.format(spot_request_id, spot_request['State']))
         return 'Failure'
+    logger.info('Spot instance request {0} is pending with state {1}'.format(spot_request_id, spot_request['State']))
     return 'Pending'

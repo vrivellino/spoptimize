@@ -18,12 +18,12 @@
                     "AvailabilityZone": "us-east-1c"
                 },
                 "ImageId": "ami-428aa838",
-                "SubnetId": "subnet-ed0b6988",
-                "KeyName": "vince-demyst",
+                "SubnetId": "subnet-bbbbbbbb",
+                "KeyName": "vince",
                 "SecurityGroups": [
                     {
                         "GroupName": "spoptimize-asgs-instance",
-                        "GroupId": "sg-1076c567"
+                        "GroupId": "sg-cccccccc"
                     }
                 ],
                 "EbsOptimized": false,
