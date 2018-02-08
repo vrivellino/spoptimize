@@ -1,8 +1,10 @@
 import boto3
 import json
-import spoptimize
 
 from os import environ
+
+from spoptimize import stepfns as spoptimize
+
 
 sfn = boto3.client('stepfunctions')
 
