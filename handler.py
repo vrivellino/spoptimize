@@ -1,92 +1,87 @@
 import boto3
+import datetime
 import json
 
 from os import environ
 
-from spoptimize import stepfns as spoptimize
+import spoptimize.stepfns as stepfns
+from spoptimize.logging_helper import logging, setup_stream_handler
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+setup_stream_handler()
 
 sfn = boto3.client('stepfunctions')
 
 
-def start_state_machine(event, context):
-    '''
-    Processes an autoscaling launch event via SNS; Starts execution of step fns
-    '''
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    state_machine_arn = environ['SPOPTIMIZE_SFN_ARN']
-    step_fn_resps = []
-    for record in event['Records']:
-        if 'Sns' in record and 'Message' in record['Sns']:
-            (init_state, msg) = spoptimize.init_machine_state(json.loads(record['Sns']['Message']), mock=mock_mode)
-            if init_state['autoscaling_group']:
-                step_fn_resps.append(sfn.start_execution(
-                    stateMachineArn=state_machine_arn,
-                    name=init_state['ActivityId'],
-                    input=json.dumps(init_state)))
-            else:
-                print('Aborting executing: {}'.format(msg))
-    return step_fn_resps
+def json_dumps_converter(o):
+    if isinstance(o, datetime.datetime):
+        # NOTE: approximating the proper date/time format. 'Z' implies UTC, which may not be true if testing locally
+        return '{0}T{1}Z'.format(o.date().__str__(), o.time().__str__())
 
 
-def ondemand_instance_healthy(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.asg_instance_state(event['ondemand_instance_id'], mock=mock_mode)
+def handler(event, context):
+    logger.debug('EVENT: {}'.format(json.dumps(event, indent=2, default=isinstance)))
+    action = environ.get('SPOPTIMIZE_ACTION').lower()
+    if not action:
+        raise Exception('SPOPTIMIZE_ACTION env var is not set')
+    if environ.get('SPOPTIMIZE_DEBUG', 'false').lower() not in ['0', 'no', 'false']:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
 
+    # Process an autoscaling launch event via SNS; Start execution of step fns
+    if action == 'start-state-machine':
+        state_machine_arn = environ['SPOPTIMIZE_SFN_ARN']
+        step_fn_resps = []
+        for record in event['Records']:
+            if 'Sns' in record and 'Message' in record['Sns']:
+                (init_state, msg) = stepfns.init_machine_state(json.loads(record['Sns']['Message']))
+                if init_state['autoscaling_group']:
+                    step_fn_resps.append(sfn.start_execution(
+                        stateMachineArn=state_machine_arn,
+                        name=init_state['ActivityId'],
+                        input=json.dumps(init_state, indent=2, default=isinstance)))
+                else:
+                    logger.error('Aborting executing: {}'.format(msg))
+        return step_fn_resps
 
-def request_spot_instance(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.request_spot_instance(
-        event['activity_id'],
-        event['autoscaling_group'],
-        event['launch_az'],
-        event['launch_subnet_id'],
-        mock=mock_mode
-    )
+    # Test New ASG Instance
+    elif action == 'ondemand-instance-healthy':
+        return stepfns.asg_instance_state(event['autoscaling_group'], event['ondemand_instance_id'])
 
+    # Request Spot Instance
+    elif action == 'request-spot':
+        return stepfns.request_spot_instance(event['autoscaling_group'], event['launch_az'],
+                                             event['launch_subnet_id'], event['activity_id'])
 
-def check_spot_request(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.get_spot_request_status(event['spot_request']['SpotInstanceRequestId'], mock=mock_mode)
+    # Check Spot Request
+    elif action == 'check-spot':
+        return stepfns.get_spot_request_status(event['spot_request']['SpotInstanceRequestId'])
 
+    # Check ASG and Tag Spot
+    elif action == 'check-asg-and-tag-spot':
+        return stepfns.check_asg_and_tag_spot(event['asg'], event['spot_request_result'], event['ondemand_instance_id'])
 
-def check_asg_and_tag_spot(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.check_asg_and_tag_spot(event['asg'], event['spot_request_result'],
-                                             event['ondemand_instance_id'], mock=mock_mode)
+    # AutoScaling Group Disappeared
+    elif action == 'term-spot-instance':
+        return stepfns.terminate_ec2_instance(event.get('spot_request_result'))
 
+    # Term OnDemand Before Attach Spot
+    elif action == 'term-ondemand-attach-spot':
+        return stepfns.attach_spot_instance(event['asg'], event['spot_request_result'], event['ondemand_instance_id'])
 
-def term_ondemand_attach_spot(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.attach_spot_instance(event['asg'], event['spot_request_result'],
-                                           event['ondemand_instance_id'], mock=mock_mode)
+    # Attach Spot Before Term OnDemand
+    elif action == 'attach-spot':
+        return stepfns.attach_spot_instance(event['asg'], event['spot_request_result'], None)
 
+    # Test Attached Instance
+    elif action == 'spot-instance-healthy':
+        return stepfns.asg_instance_state(event['autoscaling_group'], event['spot_request_result'])
 
-def attach_spot(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.attach_spot_instance(event['asg'], event['spot_request_result'], None, mock=mock_mode)
+    # Terminate OD Instance
+    elif action == 'term-ondemand-instance':
+        return stepfns.terminate_asg_instance(event['ondemand_instance_id'])
 
-
-def spot_instance_healthy(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.asg_instance_state(event['spot_request_result'], mock=mock_mode)
-
-
-def term_asg_instance(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.terminate_asg_instance(event['ondemand_instance_id'], mock=mock_mode)
-
-
-def term_spot_instance(event, context):
-    print('EVENT: {}'.format(json.dumps(event, indent=2)))
-    mock_mode = environ.get('SPOPTIMIZE_MOCK', 'false').lower() != 'false'
-    return spoptimize.terminate_ec2_instance(event.get('spot_request_result'), mock=mock_mode)
+    else:
+        raise Exception('SPOPTIMIZE_ACTION env var specifies unknown action: {}'.format(action))
