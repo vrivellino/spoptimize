@@ -58,6 +58,7 @@ def init_machine_state(sns_message):
         'launch_az': subnet_details['Availability Zone'],
         'autoscaling_group': asg,
         'spoptimize_wait_interval_s': sleep_interval,
+        'spot_request_wait_interval_s': 60,
         'spot_failure_sleep_s': 3600
     }, msg)
 
@@ -74,14 +75,21 @@ def asg_instance_state(asg_dict, instance_id):
     return asg_helper.get_instance_status(instance_id)
 
 
-def request_spot_instance(asg_dict, az, subnet_id):
+def request_spot_instance(asg_dict, az, subnet_id, activity_id):
     '''
     Fetches LaunchConfig of ASG and requests a Spot instance
     '''
     asg_name = asg_dict.get('AutoScalingGroupName')
     logger.info('Preparing to launch spot instance in {0}/{1} for {2}'.format(az, subnet_id, asg_name))
     launch_config = asg_helper.get_launch_config(asg_name)
-    return spot_helper.request_spot_instance(launch_config, az, subnet_id)
+    return spot_helper.request_spot_instance(launch_config, az, subnet_id, activity_id)
+
+
+def get_spot_request_status(spot_request_id):
+    '''
+    Fetches status of spot request
+    '''
+    return spot_helper.get_spot_request_status(spot_request_id)
 
 
 def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id):

@@ -36,6 +36,7 @@ state_machine_init = {
     'launch_az': launch_notification['Details']['Availability Zone'],
     'autoscaling_group': {},
     'spoptimize_wait_interval_s': 0,
+    'spot_request_wait_interval_s': 60,
     'spot_failure_sleep_s': 3600
 }
 
@@ -169,10 +170,26 @@ class TestRequestSpotInstance(unittest.TestCase):
         })
         res = stepfns.request_spot_instance(self.asg_dict,
                                             launch_notification['Details']['Availability Zone'],
-                                            launch_notification['Details']['Subnet ID'])
+                                            launch_notification['Details']['Subnet ID'],
+                                            'test-activity')
         stepfns.asg_helper.get_launch_config.assert_called()
         stepfns.spot_helper.request_spot_instance.assert_called()
         self.assertDictEqual(res, {'dummy': 'response'})
+
+
+class TestGetSpotRequestStatus(unittest.TestCase):
+
+    def setUp(self):
+        stepfns.asg_helper = Mock()
+        stepfns.ec2_helper = Mock()
+        stepfns.spot_helper = Mock()
+
+    def test_get_spot_request_status(self):
+        logger.debug('TestGetSpotRequestStatus.test_get_spot_request_status')
+        stepfns.spot_helper = Mock(**{'get_spot_request_status.return_value': 'Pending'})
+        res = stepfns.get_spot_request_status('sir-test')
+        stepfns.spot_helper.get_spot_request_status.assert_called_with('sir-test')
+        self.assertEqual(res, 'Pending')
 
 
 class TestCheckAsgAndTagSpot(unittest.TestCase):
