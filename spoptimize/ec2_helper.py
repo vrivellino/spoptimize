@@ -1,4 +1,5 @@
 import boto3
+import copy
 import os
 
 from logging_helper import logging
@@ -22,12 +23,21 @@ def terminate_instance(instance_id):
         ec2.terminate_instances(InstanceIds=[instance_id])
     except ClientError as c:
         if c.response['Error']['Code'] == 'InvalidInstanceID.NotFound':
-            pass
-        raise
+            logger.info('{} not found'.format(instance_id))
+        else:
+            raise
 
 
-def tag_instance(instance_id, resource_tags):
+def tag_instance(instance_id, orig_instance_id, resource_tags=[]):
     logger.info('Tagging EC2 instance {0} with {1}'.format(instance_id, resource_tags))
-    if not resource_tags:
-        return
-    ec2.create_tags(Resources=[instance_id], Tags=resource_tags)
+    my_tags = copy.copy(resource_tags)
+    my_tags.append({'Key': 'spoptimize:orig_instance_id', 'Value': orig_instance_id})
+    try:
+        ec2.create_tags(Resources=[instance_id], Tags=my_tags)
+    except ClientError as c:
+        if c.response['Error']['Code'] == 'InvalidInstanceID.NotFound':
+            logger.info('{} not found'.format(instance_id))
+            return False
+        else:
+            raise
+    return True
