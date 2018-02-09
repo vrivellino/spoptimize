@@ -10,6 +10,8 @@ import asg_helper
 from logging_helper import logging, setup_stream_handler
 
 logger = logging.getLogger()
+logger.addHandler(logging.NullHandler())
+
 here = os.path.dirname(os.path.realpath(__file__))
 mocks_dir = os.path.join(here, 'resources', 'mock_data', 'autoscaling')
 mock_attrs = {}

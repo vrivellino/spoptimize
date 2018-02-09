@@ -6,6 +6,7 @@ import ec2_helper
 from logging_helper import logging, setup_stream_handler
 
 logger = logging.getLogger()
+logger.addHandler(logging.NullHandler())
 
 
 class TestTerminateInstance(unittest.TestCase):

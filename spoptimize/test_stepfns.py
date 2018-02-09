@@ -12,6 +12,8 @@ import stepfns
 from logging_helper import logging, setup_stream_handler
 
 logger = logging.getLogger()
+logger.addHandler(logging.NullHandler())
+
 here = os.path.dirname(os.path.realpath(__file__))
 mocks_dir = os.path.join(here, 'resources', 'mock_data')
 mock_attrs = {}
@@ -22,6 +24,7 @@ for svc in ['autoscaling', 'ec2']:
         if file.endswith('.json'):
             with open(os.path.join(svc_mocks_dir, file)) as j:
                 mock_attrs[svc]['{}.return_value'.format(file.split('.')[0])] = json.loads(j.read())
+
 with open(os.path.join(mocks_dir, 'asg-launch-notification.json')) as j:
     sns_notification = json.loads(j.read())
 launch_notification = json.loads(sns_notification['Message'])
