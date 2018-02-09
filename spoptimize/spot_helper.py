@@ -1,5 +1,5 @@
 import boto3
-import json
+# import json
 import logging
 import os
 
@@ -18,7 +18,7 @@ ec2 = boto3.client('ec2')
 
 def gen_launch_specification(launch_config, avail_zone, subnet_id):
     logger.debug('Converting asg launch config to ec2 launch spec')
-    logger.debug('Launch Config: {}'.format(json.dumps(launch_config, indent=2)))
+    # logger.debug('Launch Config: {}'.format(json.dumps(launch_config, indent=2)))
     spot_launch_specification = {
         'SubnetId': subnet_id,
         'Placement': {
@@ -43,7 +43,7 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
         spot_launch_specification['Monitoring'] = {
             'Enabled': launch_config['InstanceMonitoring'].get('Enabled', False)
         }
-    logger.debug('Launch Specification: {}'.format(json.dumps(spot_launch_specification, indent=2)))
+    # logger.debug('Launch Specification: {}'.format(json.dumps(spot_launch_specification, indent=2)))
     return spot_launch_specification
 
 
