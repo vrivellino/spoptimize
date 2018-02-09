@@ -7,33 +7,42 @@ Parameters:
     Description: Base name of Spoptimize stacks
     Type: String
     Default: spoptimize
+  SnsTopicName:
+    Description: Name of SNS topic that publishes autoscaling launch notifications
+    Type: String
+    Default: spoptimize-init
   DebugLambdas:
     Description: Enable debug logging of lambda functions
     Type: String
     Default: "false"
     AllowedValues: ["false", "true"]
 
-Resources:
+Globals:
+  Function:
+    Runtime: python2.7
+    Timeout: 30
+    Handler: handler.handler
+    MemorySize: 1024
+    Environment:
+      Variables:
+        SPOPTIMIZE_DEBUG: !Ref DebugLambdas
 
+Resources:
   StartStateMachineFn:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${AWS::StackName}-start-state-machine"
       Description: Processes autoscaling launch notifications via SNS and starts Spoptimize Step Functions
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'start-state-machine'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
       Events:
-        Type: SNS
-        Properties:
-          Topic: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:spoptimize-init"
-      Timeout: 30
+        AsgLaunchNotifications:
+          Type: SNS
+          Properties:
+            Topic: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SnsTopicName}"
 
   TestNewAsgInstanceFn:
     Type: AWS::Serverless::Function
@@ -41,15 +50,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-ondemand-instance-healthy"
       Description: Checks health and status of launched autoscaling instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'ondemand-instance-healthy'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 10
 
   RequestSpotInstanceFn:
     Type: AWS::Serverless::Function
@@ -57,15 +61,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-request-spot"
       Description: Requests a spot instance to replace launched autoscaling instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'request-spot'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 10
 
   CheckSpotRequestFn:
     Type: AWS::Serverless::Function
@@ -73,15 +72,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-check-spot"
       Description: Checks the status of spot instance request
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'check-spot'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 10
 
   CheckAsgAndTagSpotFn:
     Type: AWS::Serverless::Function
@@ -89,15 +83,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-check-asg-and-tag-spot"
       Description: Verifies that the autoscaling group still exists and tags the spot instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'check-asg-and-tag-spot'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 30
 
   AutoScalingGroupDisappearedFn:
     Type: AWS::Serverless::Function
@@ -105,15 +94,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-term-spot-instance"
       Description: Terminates spot instance (if online) after autoscaling group disappears
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'term-spot-instance'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 10
 
   TermOnDemandBeforeAttachSpotFn:
     Type: AWS::Serverless::Function
@@ -121,15 +105,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-term-ondemand-attach-spot"
       Description: Terminates launched autoscaling instance and attaches spot instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'term-ondemand-attach-spot'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 30
 
   AttachSpotBeforeTermOnDemandFn:
     Type: AWS::Serverless::Function
@@ -137,15 +116,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-attach-spot"
       Description: Attaches spot instance to autoscaling group
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'attach-spot'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 10
 
   TestAttachedInstance:
     Type: AWS::Serverless::Function
@@ -153,15 +127,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-spot-instance-healthy"
       Description: Checks health and status of attached spot instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'spot-instance-healthy'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 10
 
   TerminateOnDemandInstance:
     Type: AWS::Serverless::Function
@@ -169,15 +138,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-term-ondemand-instance"
       Description: Terminates launched ondemand autoscaling instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: .
-      MemorySize: 1024
-      Handler: handler.handler
-      Runtime: python2.7
+      CodeUri: ./lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'term-ondemand-instance'
-          SPOPTIMIZE_DEBUG: !Ref DebugLambdas
-      Timeout: 10
 
   SpotRequestor:
     Type: AWS::StepFunctions::StateMachine

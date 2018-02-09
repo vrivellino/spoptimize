@@ -2,7 +2,10 @@
 
 basedir=$(dirname "$0")/..
 stack_basename=${STACK_BASENAME:-spoptimize}
-s3_bucket=${S3_BUCKET:-spoptimize-artifacts-$(aws sts get-caller-identity --query Account --output=text)}
+aws_account_id=$(aws sts get-caller-identity --query Account --output=text)
+s3_bucket=${S3_BUCKET:-spoptimize-artifacts-$aws_account_id}
+s3_prefix=${S3_PREFIX:-spoptimize}
+sns_topic_name=${ASG_SNS_TOPIC_NAME:-spoptimize-init}
 
 if [[ -z "$1" ]]; then
     do_iam=True
@@ -33,18 +36,33 @@ done
 
 if [[ -n $do_iam ]]; then
     # TODO primary/global region?
+    echo 'Deploying IAM stack ...'
     aws cloudformation deploy \
         --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
         --template-file "$basedir/iam-global.yml" \
         --stack-name "$stack_basename-iam-global" || exit $?
+    echo
 fi
 
 if [[ -n $do_sam ]]; then
+    echo 'Testing S3 access ...'
+    s3_probe_path='.spoptimize-deploy-probe'
+    s3_probe_path="$s3_prefix/.spoptimize-deploy-probe"
+    set -e
+    aws s3 cp - "s3://$s3_bucket/$s3_probe_path" < /dev/null || aws s3 mb "s3://$s3_bucket"
+    echo 'SNS Topic Arn for Autoscaling Notifications ...'
+    aws sns create-topic --name "$sns_topic_name" --output=text --query TopicArn
+    echo
+    echo 'Packaging ...'
+    zip -r "$basedir/lambda-pkg.zip" LICENSE handler.py spoptimize/ -x spoptimize/test_* spoptimize/*.pyc
     aws cloudformation package \
-        --template-file file "$basedir/sam.yml" \
+        --template-file "$basedir/sam.yml" \
         --output-template-file sam_output.yml \
-        --s3-bucket "$s3_bucket"
+        --s3-bucket "$s3_bucket" \
+        --s3-prefix "$s3_prefix"
+    echo
+    echo 'Deploying Spoptimize ...'
     aws cloudformation deploy \
         --template-file "$basedir/sam_output.yml" \
-        --stack-name "$stack_basename-lambda" || exit $?
+        --stack-name "$stack_basename" || exit $?
 fi

@@ -99,3 +99,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# AWS SAM
+sam_output.yml
+lambda-pkg.zip
