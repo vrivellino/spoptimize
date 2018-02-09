@@ -17,21 +17,23 @@ def init_machine_state(sns_message):
     Raises exception if an improper message is passed
     '''
     # logger.debug('Launch notification received {}'.format(json.dumps(sns_message, indent=2)))
-    if type(sns_message) != dict and sns_message.get('Event') != 'autoscaling:EC2_INSTANCE_LAUNCH':
-        raise Exception('Unknown SNS message')
+    if type(sns_message) != dict:
+        return ({}, 'Invalid SNS message')
+    if sns_message.get('Event') != 'autoscaling:EC2_INSTANCE_LAUNCH':
+        return ({}, 'Invalid SNS message')
     if not sns_message.get('EC2InstanceId'):
-        raise Exception('Unable to extract EC2InstanceId from SNS message')
+        return ({}, 'Unable to extract EC2InstanceId from SNS message')
     if not sns_message.get('ActivityId'):
-        raise Exception('Unable to extract ActivityId from SNS message')
+        return ({}, 'Unable to extract ActivityId from SNS message')
     if not sns_message.get('AutoScalingGroupName'):
-        raise Exception('Unable to extract AutoScalingGroupName from SNS message')
+        return ({}, 'Unable to extract AutoScalingGroupName from SNS message')
     if not sns_message.get('Details'):
-        raise Exception('Unable to extract Details from SNS message')
+        return ({}, 'Unable to extract Details from SNS message')
     instance_id = sns_message.get('EC2InstanceId')
     group_name = sns_message.get('AutoScalingGroupName')
     subnet_details = sns_message.get('Details', {})
     if not ('Subnet ID' in subnet_details and 'Availability Zone' in subnet_details):
-        raise Exception('Unable to extract Subnet Details from SNS message')
+        return ({}, 'Unable to extract Subnet Details from SNS message')
     # use Activity ID for unique step function execution identifier
     activity_id = '{0}-{1}'.format(instance_id, sns_message.get('ActivityId'))
     logger.info('Processing launch notification for {0}: {1} {2}/{3}'.format(

@@ -70,13 +70,15 @@ class TestInitMachineState(unittest.TestCase):
         self.assertIsNone(msg)
 
     def test_unknown_notification(self):
-        logger.debug('TestInitMachineState.test_malformed_notification')
+        logger.debug('TestInitMachineState.test_unknown_notification')
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict
         })
         for bad_notification in [{'hello': 'world'}, 'test', None]:
-            with self.assertRaises(Exception):
-                (state_machine_dict, msg) = stepfns.init_machine_state(bad_notification)
+
+            (state_machine_dict, msg) = stepfns.init_machine_state(bad_notification)
+            self.assertDictEqual(state_machine_dict, {})
+            self.assertEqual(msg, 'Invalid SNS message')
 
     def test_malformed_notification(self):
         logger.debug('TestInitMachineState.test_malformed_notification')
@@ -86,8 +88,9 @@ class TestInitMachineState(unittest.TestCase):
         for required_key in ['EC2InstanceId', 'AutoScalingGroupName', 'Details', 'ActivityId']:
             bad_notification = copy.deepcopy(launch_notification)
             del(bad_notification[required_key])
-            with self.assertRaises(Exception):
-                (state_machine_dict, msg) = stepfns.init_machine_state(bad_notification)
+            (state_machine_dict, msg) = stepfns.init_machine_state(bad_notification)
+            self.assertDictEqual(state_machine_dict, {})
+            self.assertTrue(msg)
 
     def test_fixed_asg(self):
         logger.debug('TestInitMachineState.test_fixed_asg')
