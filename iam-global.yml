@@ -64,6 +64,12 @@ Resources:
             - ec2:DescribeTags
             - ec2:RequestSpotInstances
           Resource: "*"
+        - Sid: StepFns
+          Effect: Allow
+          Action:
+            - states:DescribeExecution
+            - states:StartExecution
+          Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:spoptimize-*"
         - Sid: PassEc2IamRole
           Effect: Allow
           Action: iam:PassRole

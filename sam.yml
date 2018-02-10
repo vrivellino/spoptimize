@@ -38,7 +38,7 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'start-state-machine'
-          SPOPTIMIZE_SFN_ARN: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SnsTopicName}"
+          SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
       Events:
         AsgLaunchNotifications:
           Type: SNS

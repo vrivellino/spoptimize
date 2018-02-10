@@ -40,7 +40,11 @@ if [[ -n $do_iam ]]; then
     aws cloudformation deploy \
         --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
         --template-file "$basedir/iam-global.yml" \
-        --stack-name "$stack_basename-iam-global" || exit $?
+        --stack-name "$stack_basename-iam-global"
+    rc=$?
+    if [[ $rc != 0 ]] && [[ $rc != 255 ]]; then
+        exit $rc
+    fi
     echo
 fi
 

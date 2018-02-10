@@ -5,19 +5,18 @@ import json
 from os import environ
 
 import spoptimize.stepfns as stepfns
-from spoptimize.logging_helper import logging, setup_stream_handler
+from spoptimize.logging_helper import logging
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-setup_stream_handler()
 
 sfn = boto3.client('stepfunctions')
 
 
 def json_dumps_converter(o):
     if isinstance(o, datetime.datetime):
-        # NOTE: approximating the proper date/time format. 'Z' implies UTC, which may not be true if testing locally
-        return '{0}T{1}Z'.format(o.date().__str__(), o.time().__str__())
+        return o.isoformat()
+    raise TypeError("Unknown type")
 
 
 def handler(event, context):
@@ -38,10 +37,13 @@ def handler(event, context):
             if 'Sns' in record and 'Message' in record['Sns']:
                 (init_state, msg) = stepfns.init_machine_state(json.loads(record['Sns']['Message']))
                 if init_state['autoscaling_group']:
+                    logger.debug('Starting execution of {0} with name {1}'.format(state_machine_arn, init_state['activity_id']))
+                    logger.debug('Input: {}'.format(json.dumps(init_state, indent=2, default=json_dumps_converter)))
                     step_fn_resps.append(sfn.start_execution(
                         stateMachineArn=state_machine_arn,
                         name=init_state['activity_id'],
-                        input=json.dumps(init_state, indent=2, default=json_dumps_converter)))
+                        input=json.dumps(init_state, indent=2, default=json_dumps_converter)
+                    ))
                 else:
                     logger.error('Aborting executing: {}'.format(msg))
         return step_fn_resps
