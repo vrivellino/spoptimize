@@ -5,6 +5,7 @@ from random import random
 import asg_helper
 import ec2_helper
 import spot_helper
+import util
 
 logger = logging.getLogger()
 
@@ -16,7 +17,7 @@ def init_machine_state(sns_message):
 
     Raises exception if an improper message is passed
     '''
-    # logger.debug('Launch notification received {}'.format(json.dumps(sns_message, indent=2)))
+    # logger.debug('Launch notification received {}'.format(json.dumps(sns_message, indent=2, default=util.json_dumps_converter)))
     if type(sns_message) != dict:
         return ({}, 'Invalid SNS message')
     if sns_message.get('Event') != 'autoscaling:EC2_INSTANCE_LAUNCH':

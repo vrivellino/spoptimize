@@ -8,6 +8,7 @@ from botocore.exceptions import ClientError
 from mock import Mock
 
 import spot_helper
+# import util
 from logging_helper import logging, setup_stream_handler
 
 logger = logging.getLogger()
@@ -68,8 +69,8 @@ class TestGenLaunchSpecification(unittest.TestCase):
     def test_get_launch_specification(self):
         logger.debug('TestSpotHelper.get_launch_specification')
         launch_spec = spot_helper.gen_launch_specification(self.launch_config, self.az, self.subnet_id)
-        # logger.debug('Generated launch spec: {}'.format(json.dumps(launch_spec, indent=2)))
-        # logger.debug('Expected launch spec: {}'.format(json.dumps(self.expected_launch_spec, indent=2)))
+        # logger.debug('Generated launch spec: {}'.format(json.dumps(launch_spec, indent=2, default=util.json_dumps_converter)))
+        # logger.debug('Expected launch spec: {}'.format(json.dumps(self.expected_launch_spec, indent=2, default=util.json_dumps_converter)))
         self.assertDictEqual(launch_spec, self.expected_launch_spec)
 
     def test_get_launch_specification_xformed_overrides(self):
@@ -82,8 +83,8 @@ class TestGenLaunchSpecification(unittest.TestCase):
         del(self.expected_launch_spec['IamInstanceProfile'])
         self.expected_launch_spec['Placement']['Tenancy'] = 'dedicated'
         launch_spec = spot_helper.gen_launch_specification(self.launch_config, self.az, self.subnet_id)
-        # logger.debug('Generated launch spec: {}'.format(json.dumps(launch_spec, indent=2)))
-        # logger.debug('Expected launch spec: {}'.format(json.dumps(self.expected_launch_spec, indent=2)))
+        # logger.debug('Generated launch spec: {}'.format(json.dumps(launch_spec, indent=2, default=util.json_dumps_converter)))
+        # logger.debug('Expected launch spec: {}'.format(json.dumps(self.expected_launch_spec, indent=2, default=util.json_dumps_converter)))
         self.assertDictEqual(launch_spec, self.expected_launch_spec)
 
     def test_get_launch_specification_common_overrides(self):
@@ -113,8 +114,8 @@ class TestGenLaunchSpecification(unittest.TestCase):
             }
         }
         launch_spec = spot_helper.gen_launch_specification(self.launch_config, self.az, self.subnet_id)
-        # logger.debug('Generated launch spec: {}'.format(json.dumps(launch_spec, indent=2)))
-        # logger.debug('Expected launch spec: {}'.format(json.dumps(self.expected_launch_spec, indent=2)))
+        # logger.debug('Generated launch spec: {}'.format(json.dumps(launch_spec, indent=2, default=util.json_dumps_converter)))
+        # logger.debug('Expected launch spec: {}'.format(json.dumps(self.expected_launch_spec, indent=2, default=util.json_dumps_converter)))
         self.assertDictEqual(launch_spec, self.expected_launch_spec)
 
 

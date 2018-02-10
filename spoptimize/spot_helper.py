@@ -6,6 +6,8 @@ import os
 
 from botocore.exceptions import ClientError
 
+import util
+
 logger = logging.getLogger()
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
@@ -17,15 +19,9 @@ mocks_dir = os.path.join(here, 'resources', 'mock_data')
 ec2 = boto3.client('ec2')
 
 
-def json_dumps_converter(o):
-    if isinstance(o, datetime.datetime):
-        return o.isoformat()
-    raise TypeError("Unknown type")
-
-
 def gen_launch_specification(launch_config, avail_zone, subnet_id):
     logger.debug('Converting asg launch config to ec2 launch spec')
-    # logger.debug('Launch Config: {}'.format(json.dumps(launch_config, indent=2, default=json_dumps_converter)))
+    # logger.debug('Launch Config: {}'.format(json.dumps(launch_config, indent=2, default=util.json_dumps_converter)))
     spot_launch_specification = {
         'SubnetId': subnet_id,
         'Placement': {
@@ -50,7 +46,7 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
         spot_launch_specification['Monitoring'] = {
             'Enabled': launch_config['InstanceMonitoring'].get('Enabled', False)
         }
-    # logger.debug('Launch Specification: {}'.format(json.dumps(spot_launch_specification, indent=2, default=json_dumps_converter)))
+    # logger.debug('Launch Specification: {}'.format(json.dumps(spot_launch_specification, indent=2, default=util.json_dumps_converter)))
     return spot_launch_specification
 
 
@@ -59,7 +55,7 @@ def request_spot_instance(launch_config, avail_zone, subnet_id, client_token):
     launch_spec = gen_launch_specification(launch_config, avail_zone, subnet_id)
     resp = ec2.request_spot_instances(InstanceCount=1, LaunchSpecification=launch_spec,
                                       Type='one-time', ClientToken=client_token)
-    logger.debug('Spot request response: {}'.format(json.dumps(resp, indent=2, default=json_dumps_converter)))
+    logger.debug('Spot request response: {}'.format(json.dumps(resp, indent=2, default=util.json_dumps_converter)))
     return resp['SpotInstanceRequests'][0]
 
 
