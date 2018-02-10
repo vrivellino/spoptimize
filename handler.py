@@ -21,7 +21,7 @@ def json_dumps_converter(o):
 
 
 def handler(event, context):
-    logger.debug('EVENT: {}'.format(json.dumps(event, indent=2, default=isinstance)))
+    logger.debug('EVENT: {}'.format(json.dumps(event, indent=2, default=json_dumps_converter)))
     action = environ.get('SPOPTIMIZE_ACTION').lower()
     if not action:
         raise Exception('SPOPTIMIZE_ACTION env var is not set')
@@ -40,8 +40,8 @@ def handler(event, context):
                 if init_state['autoscaling_group']:
                     step_fn_resps.append(sfn.start_execution(
                         stateMachineArn=state_machine_arn,
-                        name=init_state['ActivityId'],
-                        input=json.dumps(init_state, indent=2, default=isinstance)))
+                        name=init_state['activity_id'],
+                        input=json.dumps(init_state, indent=2, default=json_dumps_converter)))
                 else:
                     logger.error('Aborting executing: {}'.format(msg))
         return step_fn_resps
