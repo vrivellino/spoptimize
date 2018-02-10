@@ -34,10 +34,11 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-start-state-machine"
       Description: Processes autoscaling launch notifications via SNS and starts Spoptimize Step Functions
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'start-state-machine'
+          SPOPTIMIZE_SFN_ARN: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SnsTopicName}"
       Events:
         AsgLaunchNotifications:
           Type: SNS
@@ -50,7 +51,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-ondemand-instance-healthy"
       Description: Checks health and status of launched autoscaling instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'ondemand-instance-healthy'
@@ -61,7 +62,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-request-spot"
       Description: Requests a spot instance to replace launched autoscaling instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'request-spot'
@@ -72,7 +73,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-check-spot"
       Description: Checks the status of spot instance request
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'check-spot'
@@ -83,7 +84,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-check-asg-and-tag-spot"
       Description: Verifies that the autoscaling group still exists and tags the spot instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'check-asg-and-tag-spot'
@@ -94,7 +95,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-term-spot-instance"
       Description: Terminates spot instance (if online) after autoscaling group disappears
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'term-spot-instance'
@@ -105,7 +106,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-term-ondemand-attach-spot"
       Description: Terminates launched autoscaling instance and attaches spot instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'term-ondemand-attach-spot'
@@ -116,7 +117,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-attach-spot"
       Description: Attaches spot instance to autoscaling group
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'attach-spot'
@@ -127,7 +128,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-spot-instance-healthy"
       Description: Checks health and status of attached spot instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'spot-instance-healthy'
@@ -138,7 +139,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-term-ondemand-instance"
       Description: Terminates launched ondemand autoscaling instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./lambda-pkg.zip
+      CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'term-ondemand-instance'

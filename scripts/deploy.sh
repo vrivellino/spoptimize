@@ -54,15 +54,15 @@ if [[ -n $do_sam ]]; then
     aws sns create-topic --name "$sns_topic_name" --output=text --query TopicArn
     echo
     echo 'Packaging ...'
-    zip -r "$basedir/lambda-pkg.zip" LICENSE handler.py spoptimize/ -x spoptimize/test_* spoptimize/*.pyc
+    zip -r "$basedir/target/lambda-pkg.zip" LICENSE handler.py spoptimize/ -x spoptimize/test_* spoptimize/*.pyc
     aws cloudformation package \
         --template-file "$basedir/sam.yml" \
-        --output-template-file sam_output.yml \
+        --output-template-file "$basedir/target/sam_output.yml" \
         --s3-bucket "$s3_bucket" \
         --s3-prefix "$s3_prefix"
     echo
     echo 'Deploying Spoptimize ...'
     aws cloudformation deploy \
-        --template-file "$basedir/sam_output.yml" \
+        --template-file "$basedir/target/sam_output.yml" \
         --stack-name "$stack_basename" || exit $?
 fi
