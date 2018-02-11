@@ -35,9 +35,10 @@ state_machine_init = {
     'launch_subnet_id': launch_notification['Details']['Subnet ID'],
     'launch_az': launch_notification['Details']['Availability Zone'],
     'autoscaling_group': {},
-    'spoptimize_wait_interval_s': 0,
-    'spot_request_wait_interval_s': 60,
-    'spot_failure_sleep_s': 3600
+    'init_sleep_interval': 0,
+    'spot_req_sleep_interval': 30,
+    'spot_attach_sleep_interval': 0,
+    'spot_failure_sleep_interval': 3600
 }
 
 
@@ -59,13 +60,15 @@ class TestInitMachineState(unittest.TestCase):
         random.seed(randseed)
         expected_state = state_machine_init.copy()
         expected_state['autoscaling_group'] = self.asg_dict.copy()
-        expected_state['spoptimize_wait_interval_s'] = int(
+        expected_state['init_sleep_interval'] = int(
             self.asg_dict['HealthCheckGracePeriod'] * (2 + self.asg_dict['MaxSize'] + random.random())
         )
+
+        expected_state['spot_attach_sleep_interval'] = int(self.asg_dict['HealthCheckGracePeriod'] * 2)
         random.seed(randseed)
         (state_machine_dict, msg) = stepfns.init_machine_state(launch_notification)
         self.assertDictEqual(state_machine_dict, expected_state)
-        self.assertGreater(state_machine_dict['spoptimize_wait_interval_s'],
+        self.assertGreater(state_machine_dict['init_sleep_interval'],
                            self.asg_dict['HealthCheckGracePeriod'] * (2 + self.asg_dict['MaxSize']))
         self.assertIsNone(msg)
 
@@ -115,15 +118,24 @@ class TestInitMachineState(unittest.TestCase):
         self.assertDictEqual(state_machine_dict, {})
         self.assertEqual(msg, expected_msg)
 
-    def test_asg_with_wait_interval(self):
-        logger.debug('TestInitMachineState.test_fixed_asg')
+    def test_asg_with_tag_overrides(self):
+        logger.debug('TestInitMachineState.test_asg_with_tag_overrides')
         wait_s = int(random.random() * 10)
-        self.asg_dict['Tags'].append({'Key': 'spoptimize:wait_interval', 'Value': '{}'.format(wait_s)})
+        spot_req_wait_s = wait_s + 1
+        attach_wait_s = wait_s + 2
+        spot_fail_wait_s = wait_s + 3
+        self.asg_dict['Tags'].append({'Key': 'spoptimize:init_sleep_interval', 'Value': '{}'.format(wait_s)})
+        self.asg_dict['Tags'].append({'Key': 'spoptimize:spot_req_sleep_interval', 'Value': '{}'.format(spot_req_wait_s)})
+        self.asg_dict['Tags'].append({'Key': 'spoptimize:spot_attach_sleep_interval', 'Value': '{}'.format(attach_wait_s)})
+        self.asg_dict['Tags'].append({'Key': 'spoptimize:spot_failure_sleep_interval', 'Value': '{}'.format(spot_fail_wait_s)})
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict
         })
         (state_machine_dict, msg) = stepfns.init_machine_state(launch_notification)
-        self.assertEqual(state_machine_dict['spoptimize_wait_interval_s'], wait_s)
+        self.assertEqual(state_machine_dict['init_sleep_interval'], wait_s)
+        self.assertEqual(state_machine_dict['spot_req_sleep_interval'], spot_req_wait_s)
+        self.assertEqual(state_machine_dict['spot_attach_sleep_interval'], attach_wait_s)
+        self.assertEqual(state_machine_dict['spot_failure_sleep_interval'], spot_fail_wait_s)
         self.assertIsNone(msg)
 
 

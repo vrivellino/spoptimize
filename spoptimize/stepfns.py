@@ -11,6 +11,18 @@ import spot_helper
 logger = logging.getLogger()
 
 
+def get_spoptimize_tags(asg_tags):
+    # logger.debug('Processing auto-scaling group tags for configuration override: {}'.format(
+    #    json.dumps(asg_tags, indent=2, default=util.json_dumps_converter)))
+    spoptimize_tags = {
+        x['Key'].split(':')[1]: x['Value']
+        for x in asg_tags
+        if x['Key'].split(':')[0] == 'spoptimize'
+    }
+    logger.info('Autoscaling group tags for configuration override: {}'.format(spoptimize_tags))
+    return spoptimize_tags
+
+
 def init_machine_state(sns_message):
     '''
     sns_message: Dict of Launch Notification embedded in SNS message
@@ -45,13 +57,18 @@ def init_machine_state(sns_message):
     if not asg:
         logger.warning('Autoscaling Group {} does not exist'.format(group_name))
         return ({}, 'AutoScaling Group does not exist')
-    sleep_interval_tags = [x['Value'] for x in asg['Tags'] if x['Key'] == 'spoptimize:wait_interval']
-    if sleep_interval_tags:
-        logger.info('Wait interval {} specified via resource tags'.format(sleep_interval_tags[0]))
-        sleep_interval = int(sleep_interval_tags[0])
-    else:
-        sleep_interval = int(asg['HealthCheckGracePeriod'] * (2 + asg['MaxSize'] + random()))
-        logger.info('Using wait interval {}s'.format(sleep_interval))
+    spoptimize_tags = get_spoptimize_tags(asg.get('Tags', []))
+    init_sleep_interval = spoptimize_tags.get(
+        'init_sleep_interval',
+        asg['HealthCheckGracePeriod'] * (2 + asg['MaxSize'] + random())
+    )
+    spot_req_sleep_interval = spoptimize_tags.get('spot_req_sleep_interval', 30)
+    spot_attach_sleep_interval = spoptimize_tags.get('spot_attach_sleep_interval', asg['HealthCheckGracePeriod'] * 2)
+    spot_failure_sleep_interval = spoptimize_tags.get('spot_failure_sleep_interval', 3600)
+    logger.info('Initial wait interval {}s'.format(init_sleep_interval))
+    logger.info('Spot request wait interval {}s'.format(spot_req_sleep_interval))
+    logger.info('Spot attachment wait interval {}s'.format(spot_attach_sleep_interval))
+    logger.info('Spot failure wait interval {}s'.format(spot_failure_sleep_interval))
     if asg['MinSize'] == asg['MaxSize']:
         logger.warning('Autoscaling Group {} has a fixed size'.format(group_name))
         return ({}, 'AutoScaling Group has fixed size')
@@ -61,9 +78,10 @@ def init_machine_state(sns_message):
         'launch_subnet_id': subnet_details['Subnet ID'],
         'launch_az': subnet_details['Availability Zone'],
         'autoscaling_group': asg,
-        'spoptimize_wait_interval_s': sleep_interval,
-        'spot_request_wait_interval_s': 60,
-        'spot_failure_sleep_s': 3600
+        'init_sleep_interval': int(init_sleep_interval),
+        'spot_req_sleep_interval': int(spot_req_sleep_interval),
+        'spot_attach_sleep_interval': int(spot_attach_sleep_interval),
+        'spot_failure_sleep_interval': int(spot_failure_sleep_interval)
     }, msg)
 
 

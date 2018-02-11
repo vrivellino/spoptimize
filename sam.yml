@@ -157,12 +157,12 @@ Resources:
             "States": {
               "Wait for New ASG Instance": {
                 "Type": "Wait",
-                "SecondsPath": "$.spoptimize_wait_interval_s",
+                "SecondsPath": "$.init_sleep_interval",
                 "Next": "Test New ASG Instance"
               },
               "Sleep after Failed Spot Request": {
                 "Type": "Wait",
-                "SecondsPath": "$.spot_failure_sleep_s",
+                "SecondsPath": "$.spot_failure_sleep_interval",
                 "Next": "Test New ASG Instance"
               },
               "Test New ASG Instance": {
@@ -215,7 +215,7 @@ Resources:
               },
               "Wait For Spot Request": {
                 "Type": "Wait",
-                "SecondsPath": "$.spot_request_wait_interval_s",
+                "SecondsPath": "$.spot_req_sleep_interval",
                 "Next": "Check Spot Request"
               },
               "Check Spot Request": {
@@ -334,7 +334,7 @@ Resources:
               },
               "Wait for Attachment": {
                 "Type": "Wait",
-                "SecondsPath": "$.spoptimize_wait_interval_s",
+                "SecondsPath": "$.spot_attach_sleep_interval",
                 "Next": "Test Attached Instance"
               },
               "Test Attached Instance": {
