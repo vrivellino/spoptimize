@@ -32,11 +32,11 @@ def handler(event, context):
             if 'Sns' in record and 'Message' in record['Sns']:
                 (init_state, msg) = stepfns.init_machine_state(json.loads(record['Sns']['Message']))
                 if init_state['autoscaling_group']:
-                    logger.debug('Starting execution of {0} with name {1}'.format(state_machine_arn, init_state['activity_id']))
+                    logger.debug('Starting execution of {0} with name {1}'.format(state_machine_arn, init_state['ondemand_instance_id']))
                     logger.debug('Input: {}'.format(json.dumps(init_state, indent=2, default=util.json_dumps_converter)))
                     step_fn_resps.append(sfn.start_execution(
                         stateMachineArn=state_machine_arn,
-                        name=init_state['activity_id'],
+                        name=init_state['ondemand_instance_id'],
                         input=json.dumps(init_state, indent=2, default=util.json_dumps_converter)
                     ))
                 else:
@@ -50,7 +50,7 @@ def handler(event, context):
     # Request Spot Instance
     elif action == 'request-spot':
         retval = stepfns.request_spot_instance(event['autoscaling_group'], event['launch_az'],
-                                               event['launch_subnet_id'], event['activity_id'])
+                                               event['launch_subnet_id'], event['ondemand_instance_id'])
 
     # Check Spot Request
     elif action == 'check-spot':

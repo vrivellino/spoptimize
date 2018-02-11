@@ -30,7 +30,6 @@ with open(os.path.join(mocks_dir, 'asg-launch-notification.json')) as j:
 launch_notification = json.loads(sns_notification['Message'])
 randseed = (datetime.datetime.now() - datetime.datetime.utcfromtimestamp(0)).total_seconds()
 state_machine_init = {
-    'activity_id': '{0}-{1}'.format(launch_notification['EC2InstanceId'], launch_notification['ActivityId']),
     'ondemand_instance_id': launch_notification['EC2InstanceId'],
     'launch_subnet_id': launch_notification['Details']['Subnet ID'],
     'launch_az': launch_notification['Details']['Availability Zone'],
@@ -88,7 +87,7 @@ class TestInitMachineState(unittest.TestCase):
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict
         })
-        for required_key in ['EC2InstanceId', 'AutoScalingGroupName', 'Details', 'ActivityId']:
+        for required_key in ['EC2InstanceId', 'AutoScalingGroupName', 'Details']:
             bad_notification = copy.deepcopy(launch_notification)
             del(bad_notification[required_key])
             (state_machine_dict, msg) = stepfns.init_machine_state(bad_notification)

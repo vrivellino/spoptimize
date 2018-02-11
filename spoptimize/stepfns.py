@@ -37,8 +37,6 @@ def init_machine_state(sns_message):
         return ({}, 'Invalid SNS message')
     if not sns_message.get('EC2InstanceId'):
         return ({}, 'Unable to extract EC2InstanceId from SNS message')
-    if not sns_message.get('ActivityId'):
-        return ({}, 'Unable to extract ActivityId from SNS message')
     if not sns_message.get('AutoScalingGroupName'):
         return ({}, 'Unable to extract AutoScalingGroupName from SNS message')
     if not sns_message.get('Details'):
@@ -48,8 +46,6 @@ def init_machine_state(sns_message):
     subnet_details = sns_message.get('Details', {})
     if not ('Subnet ID' in subnet_details and 'Availability Zone' in subnet_details):
         return ({}, 'Unable to extract Subnet Details from SNS message')
-    # use Activity ID for unique step function execution identifier
-    activity_id = '{0}-{1}'.format(instance_id, sns_message.get('ActivityId'))
     logger.info('Processing launch notification for {0}: {1} {2}/{3}'.format(
         group_name, instance_id, subnet_details['Availability Zone'], subnet_details['Subnet ID']))
     msg = None
@@ -73,7 +69,6 @@ def init_machine_state(sns_message):
         logger.warning('Autoscaling Group {} has a fixed size'.format(group_name))
         return ({}, 'AutoScaling Group has fixed size')
     return ({
-        'activity_id': activity_id,
         'ondemand_instance_id': instance_id,
         'launch_subnet_id': subnet_details['Subnet ID'],
         'launch_az': subnet_details['Availability Zone'],
@@ -97,14 +92,14 @@ def asg_instance_state(asg_dict, instance_id):
     return asg_helper.get_instance_status(instance_id)
 
 
-def request_spot_instance(asg_dict, az, subnet_id, activity_id):
+def request_spot_instance(asg_dict, az, subnet_id, client_token):
     '''
     Fetches LaunchConfig of ASG and requests a Spot instance
     '''
     asg_name = asg_dict.get('AutoScalingGroupName')
     logger.info('Preparing to launch spot instance in {0}/{1} for {2}'.format(az, subnet_id, asg_name))
     launch_config = asg_helper.get_launch_config(asg_name)
-    return spot_helper.request_spot_instance(launch_config, az, subnet_id, activity_id)
+    return spot_helper.request_spot_instance(launch_config, az, subnet_id, client_token)
 
 
 def get_spot_request_status(spot_request_id):
