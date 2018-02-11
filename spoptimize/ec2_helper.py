@@ -41,3 +41,19 @@ def tag_instance(instance_id, orig_instance_id, resource_tags=[]):
         else:
             raise
     return True
+
+
+def is_instance_running(instance_id):
+    logger.debug('Fetching EC2 instance state of {}'.format(instance_id))
+    try:
+        resp = ec2.describe_instances(InstanceIds=[instance_id])
+    except ClientError as c:
+        if c.response['Error']['Code'] == 'InvalidInstanceID.NotFound':
+            logger.warning('{} not found'.format(instance_id))
+            return None
+        else:
+            raise
+    # pending | running | shutting-down | terminated | stopping | stopped
+    instance_state = resp['Reservations'][0]['Instances'][0]['State']['Name']
+    logger.info('EC2 Instance state of {0}: {1}'.format(instance_id, instance_state))
+    return resp['Reservations'][0]['Instances'][0]['State']['Name'] == 'running'

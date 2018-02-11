@@ -173,8 +173,8 @@ Resources:
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 10,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 5
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
                 }]
               },
               "OD Instance Healthy?": {
@@ -208,9 +208,9 @@ Resources:
                 "Next": "Wait For Spot Request",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 1,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 2
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
                 }]
               },
               "Wait For Spot Request": {
@@ -225,9 +225,9 @@ Resources:
                 "ResultPath": "$.spot_request_result",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 20,
+                  "IntervalSeconds": 10,
                   "MaxAttempts": 5,
-                  "BackoffRate": 20
+                  "BackoffRate": 15
                 }]
               },
               "Spot Request Status?": {
@@ -247,12 +247,12 @@ Resources:
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-check-asg-and-tag-spot",
                 "Next": "Check ASG Status and Tag Spot?",
-                "OutputPath": "$.check_asg_result",
+                "ResultPath": "$.check_asg_result",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 10,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 5
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
                 }]
               },
               "Check ASG Status and Tag Spot?": {
@@ -283,32 +283,32 @@ Resources:
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 10,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 5
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
                 }]
               },
               "Term OnDemand Before Attach Spot": {
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-ondemand-attach-spot",
-                "OutputPath": "$.spot_attach_result",
+                "ResultPath": "$.spot_attach_result",
                 "Next": "Check Attachment?",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 10,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 5
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
                 }]
               },
               "Attach Spot Before Term OnDemand": {
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-attach-spot",
-                "OutputPath": "$.spot_attach_result",
+                "ResultPath": "$.spot_attach_result",
                 "Next": "Check Attachment?",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 10,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 5
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
                 }]
               },
               "Check Attachment?": {
@@ -345,8 +345,8 @@ Resources:
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 10,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 5
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
                 }]
               },
               "Spot Instance Healthy?": {
@@ -372,9 +372,9 @@ Resources:
                 "End": true,
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 1,
-                  "MaxAttempts": 3,
-                  "BackoffRate": 2
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
                 }]
               }
             }

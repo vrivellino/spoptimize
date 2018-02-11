@@ -1,11 +1,12 @@
 # import json
 import logging
+import re
 from random import random
 
 import asg_helper
 import ec2_helper
 import spot_helper
-import util
+# import util
 
 logger = logging.getLogger()
 
@@ -92,7 +93,13 @@ def get_spot_request_status(spot_request_id):
     '''
     Fetches status of spot request
     '''
-    return spot_helper.get_spot_request_status(spot_request_id)
+    spot_request_result = spot_helper.get_spot_request_status(spot_request_id)
+    if re.match(r'^i-', spot_request_result):
+        if ec2_helper.is_instance_running(spot_request_result):
+            return spot_request_result
+        else:
+            return 'Pending'
+    return spot_request_result
 
 
 def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id):

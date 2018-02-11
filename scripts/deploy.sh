@@ -6,6 +6,7 @@ aws_account_id=$(aws sts get-caller-identity --query Account --output=text)
 s3_bucket=${S3_BUCKET:-spoptimize-artifacts-$aws_account_id}
 s3_prefix=${S3_PREFIX:-spoptimize}
 sns_topic_name=${ASG_SNS_TOPIC_NAME:-spoptimize-init}
+lambda_debug_log=${SPOPTIMIZE_LAMBDA_DEBUG_LOG:-false}
 
 if [[ -z "$1" ]]; then
     do_iam=True
@@ -67,6 +68,7 @@ if [[ -n $do_sam ]]; then
     echo
     echo 'Deploying Spoptimize ...'
     aws cloudformation deploy \
+        --parameter-overrides DebugLambdas=$lambda_debug_log \
         --template-file "$basedir/target/sam_output.yml" \
         --stack-name "$stack_basename" || exit $?
 fi

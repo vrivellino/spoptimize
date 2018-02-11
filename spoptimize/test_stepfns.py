@@ -192,6 +192,34 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         stepfns.spot_helper = Mock(**{'get_spot_request_status.return_value': 'Pending'})
         res = stepfns.get_spot_request_status('sir-test')
         stepfns.spot_helper.get_spot_request_status.assert_called_with('sir-test')
+        stepfns.ec2_helper.is_instance_running.assert_not_called()
+        self.assertEqual(res, 'Pending')
+
+    def test_get_spot_request_status_running_instance(self):
+        logger.debug('TestGetSpotRequestStatus.test_get_spot_request_status')
+        stepfns.spot_helper = Mock(**{'get_spot_request_status.return_value': 'i-abcd123'})
+        stepfns.ec2_helper = Mock(**{'is_instance_running.return_value': True})
+        res = stepfns.get_spot_request_status('sir-test')
+        stepfns.spot_helper.get_spot_request_status.assert_called_with('sir-test')
+        stepfns.ec2_helper.is_instance_running.assert_called_once_with('i-abcd123')
+        self.assertEqual(res, 'i-abcd123')
+
+    def test_get_spot_request_status_notrunning_instance(self):
+        logger.debug('TestGetSpotRequestStatus.test_get_spot_request_status')
+        stepfns.spot_helper = Mock(**{'get_spot_request_status.return_value': 'i-abcd123'})
+        stepfns.ec2_helper = Mock(**{'is_instance_running.return_value': False})
+        res = stepfns.get_spot_request_status('sir-test')
+        stepfns.spot_helper.get_spot_request_status.assert_called_with('sir-test')
+        stepfns.ec2_helper.is_instance_running.assert_called_once_with('i-abcd123')
+        self.assertEqual(res, 'Pending')
+
+    def test_get_spot_request_status_unknown_instance(self):
+        logger.debug('TestGetSpotRequestStatus.test_get_spot_request_status')
+        stepfns.spot_helper = Mock(**{'get_spot_request_status.return_value': 'i-abcd123'})
+        stepfns.ec2_helper = Mock(**{'is_instance_running.return_value': None})
+        res = stepfns.get_spot_request_status('sir-test')
+        stepfns.spot_helper.get_spot_request_status.assert_called_with('sir-test')
+        stepfns.ec2_helper.is_instance_running.assert_called_once_with('i-abcd123')
         self.assertEqual(res, 'Pending')
 
 

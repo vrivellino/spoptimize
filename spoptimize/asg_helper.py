@@ -94,16 +94,16 @@ def attach_instance(asg_name, instance_id):
         autoscaling.attach_instances(InstanceIds=[instance_id], AutoScalingGroupName=asg_name)
     except ClientError as c:
         if re.match(r'.*please update the AutoScalingGroup sizes appropriately', c.response['Error']['Message']):
-            logger.error('AutoScaling group {0} is incorrectly sized ... cannot attach {1}'.format(asg_name, instance_id))
+            logger.error(c.response['Error']['Message'])
             return 'AutoScaling group not sized correctly'
         if re.match(r'AutoScalingGroup name not found', c.response['Error']['Message']):
-            logger.warning('AutoScaling group {0} no longer exists ... cannot attach {1}'.format(asg_name, instance_id))
+            logger.warning(c.response['Error']['Message'])
             return 'Auto-Scaling Group Disappeared'
         if re.match(r'Instance .* is not in correct state', c.response['Error']['Message']):
-            logger.warning('{1} is not in correct state ... cannot attach to {0}'.format(asg_name, instance_id))
+            logger.error(c.response['Error']['Message'])
             return 'Instance missing'
         if re.match(r'Invalid Instance ID', c.response['Error']['Message']):
-            logger.error('{1} is not a valid instance-id ... cannot attach to {0}'.format(asg_name, instance_id))
+            logger.error(c.response['Error']['Message'])
             return 'Invalid instance'
         raise
     logger.debug('Successfully attached {0} to {1}'.format(instance_id, asg_name))

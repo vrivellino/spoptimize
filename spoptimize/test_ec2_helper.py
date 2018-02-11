@@ -1,3 +1,6 @@
+import copy
+import json
+import os
 import unittest
 from botocore.exceptions import ClientError
 from mock import Mock
@@ -7,6 +10,14 @@ from logging_helper import logging, setup_stream_handler
 
 logger = logging.getLogger()
 logger.addHandler(logging.NullHandler())
+
+here = os.path.dirname(os.path.realpath(__file__))
+mocks_dir = os.path.join(here, 'resources', 'mock_data', 'ec2')
+mock_attrs = {}
+for file in os.listdir(mocks_dir):
+    if file.endswith('.json'):
+        with open(os.path.join(mocks_dir, file)) as j:
+            mock_attrs['{}.return_value'.format(file.split('.')[0])] = json.loads(j.read())
 
 
 class TestTerminateInstance(unittest.TestCase):
@@ -63,6 +74,39 @@ class TestTagInstance(unittest.TestCase):
         res = ec2_helper.tag_instance('i-9999999', 'i-abcd123', [])
         ec2_helper.ec2.create_tags.assert_called()
         self.assertFalse(res)
+
+
+class TestIsInstanceRunning(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_attrs = copy.deepcopy(mock_attrs)
+
+    def test_running_instance(self):
+        logger.debug('TestIsInstanceRunning.test_running_instancetest_running_instance')
+        self.mock_attrs['describe_instances.return_value']['Reservations'][0]['Instances'][0]['State']['Name'] = 'running'
+        ec2_helper.ec2 = Mock(**self.mock_attrs)
+        res = ec2_helper.is_instance_running('i-abcd123')
+        ec2_helper.ec2.describe_instances.assert_called_once_with(InstanceIds=['i-abcd123'])
+        self.assertTrue(res)
+
+    def test_not_running_instance(self):
+        logger.debug('TestIsInstanceRunning.test_not_running_instance')
+        for state in ['pending', 'shutting-down', 'terminated', 'stopping', 'stopped']:
+            self.mock_attrs['describe_instances.return_value']['Reservations'][0]['Instances'][0]['State']['Name'] = state
+            ec2_helper.ec2 = Mock(**self.mock_attrs)
+            res = ec2_helper.is_instance_running('i-abcd123')
+            self.assertFalse(res)
+
+    def test_unknown_instance(self):
+        logger.debug('TestIsInstanceRunning.test_unknown_instance')
+        ec2_helper.ec2 = Mock(**{'describe_instances.side_effect': ClientError({
+            'Error': {
+                'Code': 'InvalidInstanceID.NotFound',
+                'Message': "The instance ID 'i-abcd123' does not exist"
+            }
+        }, 'DescribeInstances')})
+        res = ec2_helper.is_instance_running('i-abcd123')
+        self.assertIsNone(res)
 
 
 if __name__ == '__main__':
