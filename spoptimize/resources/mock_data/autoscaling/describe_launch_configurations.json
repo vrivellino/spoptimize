@@ -1,0 +1,25 @@
+{
+    "LaunchConfigurations": [
+        {
+            "UserData": "IyEvYmluL2Jhc2gKc2V0IC1leAphbWF6b24tbGludXgtZXh0cmFzIGluc3RhbGwgbmdpbngxLjEyCmVjMi1tZXRhZGF0YSAtaSA+IC91c3Ivc2hhcmUvbmdpbngvaHRtbC9pbnN0YW5jZS1pZC50eHQKc3lzdGVtY3RsIHN0YXJ0IG5naW54LnNlcnZpY2UK",
+            "IamInstanceProfile": "arn:aws:iam::123456789012:instance-profile/base-ec2",
+            "EbsOptimized": false,
+            "LaunchConfigurationARN": "arn:aws:autoscaling:us-east-1:123456789012:launchConfiguration:9c6c99f0-9bfb-4ecd-bc63-e0bfe7938607:launchConfigurationName/spoptimize-asgs-LaunchConfigOD-10Y5NXG6WOBRQ",
+            "InstanceMonitoring": {
+                "Enabled": true
+            },
+            "ClassicLinkVPCSecurityGroups": [],
+            "CreatedTime": "2018-02-03T20:05:25.737Z",
+            "BlockDeviceMappings": [],
+            "KeyName": "vince",
+            "SecurityGroups": [
+                "sg-cccccccc"
+            ],
+            "LaunchConfigurationName": "spoptimize-asgs-LaunchConfigOD-10Y5NXG6WOBRQ",
+            "KernelId": "",
+            "RamdiskId": "",
+            "ImageId": "ami-428aa838",
+            "InstanceType": "t2.micro"
+        }
+    ]
+}

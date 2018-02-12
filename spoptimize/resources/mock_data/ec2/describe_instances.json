@@ -1,0 +1,113 @@
+{
+    "Reservations": [
+        {
+            "Instances": [
+                {
+                    "Monitoring": {
+                        "State": "disabled"
+                    },
+                    "PublicDnsName": "ec2-55-55-55-55.compute-1.amazonaws.com",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "EbsOptimized": false,
+                    "LaunchTime": "2016-04-14T11:46:22+00:00",
+                    "PublicIpAddress": "55.55.55.55",
+                    "PrivateIpAddress": "172.31.10.10",
+                    "ProductCodes": [],
+                    "VpcId": "vpc-aaaaaaaa",
+                    "StateTransitionReason": "",
+                    "InstanceId": "i-abcd123",
+                    "ImageId": "ami-78acdf12",
+                    "PrivateDnsName": "ip-172-31-10-10.ec2.internal",
+                    "SecurityGroups": [
+                        {
+                            "GroupName": "irc",
+                            "GroupId": "sg-cccccccc"
+                        }
+                    ],
+                    "SubnetId": "subnet-bbbbbbbb",
+                    "InstanceType": "t2.nano",
+                    "NetworkInterfaces": [
+                        {
+                            "Status": "in-use",
+                            "MacAddress": "12:34:e2:8d:b7:9d",
+                            "SourceDestCheck": true,
+                            "VpcId": "vpc-aaaaaaaa",
+                            "Description": "",
+                            "NetworkInterfaceId": "eni-88888888",
+                            "PrivateIpAddresses": [
+                                {
+                                    "PrivateDnsName": "ip-172-31-10-10.ec2.internal",
+                                    "PrivateIpAddress": "172.31.10.10",
+                                    "Primary": true,
+                                    "Association": {
+                                        "PublicIp": "55.55.55.55",
+                                        "PublicDnsName": "ec2-55-55-55-55.compute-1.amazonaws.com",
+                                        "IpOwnerId": "123456789012"
+                                    }
+                                }
+                            ],
+                            "PrivateDnsName": "ip-172-31-10-10.ec2.internal",
+                            "Attachment": {
+                                "Status": "attached",
+                                "DeviceIndex": 0,
+                                "DeleteOnTermination": true,
+                                "AttachmentId": "eni-attach-77777777",
+                                "AttachTime": "2015-10-31T15:18:11+00:00"
+                            },
+                            "Groups": [
+                                {
+                                    "GroupName": "secgroup-test",
+                                    "GroupId": "sg-cccccccc"
+                                }
+                            ],
+                            "Ipv6Addresses": [],
+                            "OwnerId": "123456789012",
+                            "PrivateIpAddress": "172.31.10.10",
+                            "SubnetId": "subnet-bbbbbbbb",
+                            "Association": {
+                                "PublicIp": "55.55.55.55",
+                                "PublicDnsName": "ec2-55-55-55-55.compute-1.amazonaws.com",
+                                "IpOwnerId": "123456789012"
+                            }
+                        }
+                    ],
+                    "SourceDestCheck": true,
+                    "Placement": {
+                        "Tenancy": "default",
+                        "GroupName": "",
+                        "AvailabilityZone": "us-east-1d"
+                    },
+                    "Hypervisor": "xen",
+                    "BlockDeviceMappings": [
+                        {
+                            "DeviceName": "/dev/xvda",
+                            "Ebs": {
+                                "Status": "attached",
+                                "DeleteOnTermination": true,
+                                "VolumeId": "vol-55555555",
+                                "AttachTime": "2015-10-31T15:18:15+00:00"
+                            }
+                        }
+                    ],
+                    "Architecture": "x86_64",
+                    "RootDeviceType": "ebs",
+                    "RootDeviceName": "/dev/xvda",
+                    "VirtualizationType": "hvm",
+                    "Tags": [
+                        {
+                            "Value": "instance-name",
+                            "Key": "Name"
+                        }
+                    ],
+                    "AmiLaunchIndex": 0
+                }
+            ],
+            "ReservationId": "r-eeeeeeee",
+            "Groups": [],
+            "OwnerId": "123456789012"
+        }
+    ]
+}

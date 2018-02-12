@@ -1,0 +1,13 @@
+{
+    "AutoScalingInstances": [
+        {
+            "ProtectedFromScaleIn": false,
+            "AvailabilityZone": "us-east-1f",
+            "InstanceId": "i-022e8bd98530c019a",
+            "AutoScalingGroupName": "spoptimize-asgs-LaunchGroupOD-HWZF4JML296X",
+            "HealthStatus": "HEALTHY",
+            "LifecycleState": "Detaching",
+            "LaunchConfigurationName": "spoptimize-asgs-LaunchConfigOD-10Y5NXG6WOBRQ"
+        }
+    ]
+}

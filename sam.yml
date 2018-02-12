@@ -1,0 +1,389 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Step Functions for Spoptimize
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  StackBasename:
+    Description: Base name of Spoptimize stacks
+    Type: String
+    Default: spoptimize
+  SnsTopicName:
+    Description: Name of SNS topic that publishes autoscaling launch notifications
+    Type: String
+    Default: spoptimize-init
+  DebugLambdas:
+    Description: Enable debug logging of lambda functions
+    Type: String
+    Default: "false"
+    AllowedValues: ["false", "true"]
+
+Globals:
+  Function:
+    Runtime: python2.7
+    Timeout: 30
+    Handler: handler.handler
+    MemorySize: 1024
+    Environment:
+      Variables:
+        SPOPTIMIZE_DEBUG: !Ref DebugLambdas
+
+Resources:
+  StartStateMachineFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-start-state-machine"
+      Description: Processes autoscaling launch notifications via SNS and starts Spoptimize Step Functions
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'start-state-machine'
+          SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
+      Events:
+        AsgLaunchNotifications:
+          Type: SNS
+          Properties:
+            Topic: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SnsTopicName}"
+
+  TestNewAsgInstanceFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-ondemand-instance-healthy"
+      Description: Checks health and status of launched autoscaling instance
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'ondemand-instance-healthy'
+
+  RequestSpotInstanceFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-request-spot"
+      Description: Requests a spot instance to replace launched autoscaling instance
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'request-spot'
+
+  CheckSpotRequestFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-check-spot"
+      Description: Checks the status of spot instance request
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'check-spot'
+
+  CheckAsgAndTagSpotFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-check-asg-and-tag-spot"
+      Description: Verifies that the autoscaling group still exists and tags the spot instance
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'check-asg-and-tag-spot'
+
+  AutoScalingGroupDisappearedFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-term-spot-instance"
+      Description: Terminates spot instance (if online) after autoscaling group disappears
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'term-spot-instance'
+
+  TermOnDemandBeforeAttachSpotFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-term-ondemand-attach-spot"
+      Description: Terminates launched autoscaling instance and attaches spot instance
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'term-ondemand-attach-spot'
+
+  AttachSpotBeforeTermOnDemandFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-attach-spot"
+      Description: Attaches spot instance to autoscaling group
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'attach-spot'
+
+  TestAttachedInstance:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-spot-instance-healthy"
+      Description: Checks health and status of attached spot instance
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'spot-instance-healthy'
+
+  TerminateOnDemandInstance:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-term-ondemand-instance"
+      Description: Terminates launched ondemand autoscaling instance
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'term-ondemand-instance'
+
+  SpotRequestor:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub "${AWS::StackName}-spot-requestor"
+      RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-state-machine"
+      DefinitionString:
+        Fn::Sub: |-
+          {
+            "Comment": "Spoptimize State Machine",
+            "StartAt": "Wait for New ASG Instance",
+            "States": {
+              "Wait for New ASG Instance": {
+                "Type": "Wait",
+                "SecondsPath": "$.init_sleep_interval",
+                "Next": "Test New ASG Instance"
+              },
+              "Sleep after Failed Spot Request": {
+                "Type": "Wait",
+                "SecondsPath": "$.spot_failure_sleep_interval",
+                "Next": "Test New ASG Instance"
+              },
+              "Test New ASG Instance": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-ondemand-instance-healthy",
+                "Next": "OD Instance Healthy?",
+                "ResultPath": "$.ondemand_instance_status",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              },
+              "OD Instance Healthy?": {
+                "Type": "Choice",
+                "Choices": [{
+                  "Variable": "$.ondemand_instance_status",
+                  "StringEquals": "Healthy",
+                  "Next": "Request Spot Instance"
+                },{
+                  "Variable": "$.ondemand_instance_status",
+                  "StringEquals": "Terminated",
+                  "Next": "OD Instance Disappeared Or Protected"
+                },{
+                  "Variable": "$.ondemand_instance_status",
+                  "StringEquals": "Protected",
+                  "Next": "OD Instance Disappeared Or Protected"
+                },{
+                  "Variable": "$.ondemand_instance_status",
+                  "StringEquals": "Auto-Scaling Group Disappeared",
+                  "Next": "AutoScaling Group Disappeared"
+                }],
+                "Default": "Wait for New ASG Instance"
+              },
+              "OD Instance Disappeared Or Protected": {
+                "Type": "Succeed"
+              },
+              "Request Spot Instance": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-request-spot",
+                "ResultPath": "$.spot_request",
+                "Next": "Wait For Spot Request",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              },
+              "Wait For Spot Request": {
+                "Type": "Wait",
+                "SecondsPath": "$.spot_req_sleep_interval",
+                "Next": "Check Spot Request"
+              },
+              "Check Spot Request": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-check-spot",
+                "Next": "Spot Request Status?",
+                "ResultPath": "$.spot_request_result",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              },
+              "Spot Request Status?": {
+                "Type": "Choice",
+                "Choices": [{
+                  "Variable": "$.spot_request_result",
+                  "StringEquals": "Pending",
+                  "Next": "Wait For Spot Request"
+                },{
+                  "Variable": "$.spot_request_result",
+                  "StringEquals": "Failure",
+                  "Next": "Sleep after Failed Spot Request"
+                }],
+                "Default": "Check ASG and Tag Spot"
+              },
+              "Check ASG and Tag Spot": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-check-asg-and-tag-spot",
+                "Next": "Check ASG Status and Tag Spot?",
+                "ResultPath": "$.check_asg_result",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              },
+              "Check ASG Status and Tag Spot?": {
+                "Type": "Choice",
+                "Choices": [{
+                  "Variable": "$.check_asg_result",
+                  "StringEquals": "No Capacity Available",
+                  "Next": "Term OnDemand Before Attach Spot"
+                },{
+                  "Variable": "$.check_asg_result",
+                  "StringEquals": "OnDemand Terminated",
+                  "Next": "OD Instance Disappeared Or Protected"
+                },{
+                  "Variable": "$.check_asg_result",
+                  "StringEquals": "Auto-Scaling Group Disappeared",
+                  "Next": "AutoScaling Group Disappeared"
+                },{
+                  "Variable": "$.check_asg_result",
+                  "StringEquals": "Spot Instance Disappeared",
+                  "Next": "Sleep after Failed Spot Request"
+                }],
+                "Default": "Attach Spot Before Term OnDemand"
+              },
+              "AutoScaling Group Disappeared": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-spot-instance",
+                "End": true,
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              },
+              "Term OnDemand Before Attach Spot": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-ondemand-attach-spot",
+                "ResultPath": "$.spot_attach_result",
+                "Next": "Check Attachment?",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              },
+              "Attach Spot Before Term OnDemand": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-attach-spot",
+                "ResultPath": "$.spot_attach_result",
+                "Next": "Check Attachment?",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              },
+              "Check Attachment?": {
+                "Type": "Choice",
+                "Choices": [{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "AutoScaling group not sized correctly",
+                  "Next": "AutoScaling Group Disappeared"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "Auto-Scaling Group Disappeared",
+                  "Next": "AutoScaling Group Disappeared"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "Instance missing",
+                  "Next": "Sleep after Failed Spot Request"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "Invalid instance",
+                  "Next": "Sleep after Failed Spot Request"
+                }],
+                "Default": "Wait for Attachment"
+              },
+              "Wait for Attachment": {
+                "Type": "Wait",
+                "SecondsPath": "$.spot_attach_sleep_interval",
+                "Next": "Test Attached Instance"
+              },
+              "Test Attached Instance": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-spot-instance-healthy",
+                "Next": "Spot Instance Healthy?",
+                "ResultPath": "$.spot_instance_status",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              },
+              "Spot Instance Healthy?": {
+                "Type": "Choice",
+                "Choices": [{
+                  "Variable": "$.spot_instance_status",
+                  "StringEquals": "Healthy",
+                  "Next": "Terminate OD Instance"
+                },{
+                  "Variable": "$.spot_instance_status",
+                  "StringEquals": "Terminated",
+                  "Next": "Sleep after Failed Spot Request"
+                },{
+                  "Variable": "$.spot_instance_status",
+                  "StringEquals": "Auto-Scaling Group Disappeared",
+                  "Next": "AutoScaling Group Disappeared"
+                }],
+                "Default": "Wait for Attachment"
+              },
+              "Terminate OD Instance": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-ondemand-instance",
+                "End": true,
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 10,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 15
+                }]
+              }
+            }
+          }
+
+Outputs:
+  SpotRequestorArn:
+    Description: Arn of Spot Requestor State Machine
+    Value: !Ref SpotRequestor
+  SpotRequestorName:
+    Description: Name of Spot Requestor State Machine
+    Value: !GetAtt SpotRequestor.Name
