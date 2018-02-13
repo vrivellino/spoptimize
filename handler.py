@@ -56,29 +56,17 @@ def handler(event, context):
     elif action == 'check-spot':
         retval = stepfns.get_spot_request_status(event['spot_request']['SpotInstanceRequestId'])
 
-    # Check ASG and Tag Spot
-    elif action == 'check-asg-and-tag-spot':
-        retval = stepfns.check_asg_and_tag_spot(event['autoscaling_group'], event['spot_request_result'], event['ondemand_instance_id'])
-
     # AutoScaling Group Disappeared
     elif action == 'term-spot-instance':
         retval = stepfns.terminate_ec2_instance(event.get('spot_request_result'))
 
-    # Term OnDemand Before Attach Spot
-    elif action == 'term-ondemand-attach-spot':
-        retval = stepfns.attach_spot_instance(event['autoscaling_group'], event['spot_request_result'], event['ondemand_instance_id'])
-
-    # Attach Spot Before Term OnDemand
+    # Attach Spot Instance
     elif action == 'attach-spot':
-        retval = stepfns.attach_spot_instance(event['autoscaling_group'], event['spot_request_result'], None)
+        retval = stepfns.attach_spot_instance(event['autoscaling_group'], event['spot_request_result'], event['ondemand_instance_id'])
 
     # Test Attached Instance
     elif action == 'spot-instance-healthy':
         retval = stepfns.asg_instance_state(event['autoscaling_group'], event['spot_request_result'])
-
-    # Terminate OD Instance
-    elif action == 'term-ondemand-instance':
-        retval = stepfns.terminate_asg_instance(event['ondemand_instance_id'])
 
     else:
         raise Exception('SPOPTIMIZE_ACTION env var specifies unknown action: {}'.format(action))

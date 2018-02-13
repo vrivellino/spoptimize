@@ -78,17 +78,6 @@ Resources:
         Variables:
           SPOPTIMIZE_ACTION: 'check-spot'
 
-  CheckAsgAndTagSpotFn:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${AWS::StackName}-check-asg-and-tag-spot"
-      Description: Verifies that the autoscaling group still exists and tags the spot instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./target/lambda-pkg.zip
-      Environment:
-        Variables:
-          SPOPTIMIZE_ACTION: 'check-asg-and-tag-spot'
-
   AutoScalingGroupDisappearedFn:
     Type: AWS::Serverless::Function
     Properties:
@@ -99,17 +88,6 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'term-spot-instance'
-
-  TermOnDemandBeforeAttachSpotFn:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${AWS::StackName}-term-ondemand-attach-spot"
-      Description: Terminates launched autoscaling instance and attaches spot instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./target/lambda-pkg.zip
-      Environment:
-        Variables:
-          SPOPTIMIZE_ACTION: 'term-ondemand-attach-spot'
 
   AttachSpotBeforeTermOnDemandFn:
     Type: AWS::Serverless::Function
@@ -132,17 +110,6 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'spot-instance-healthy'
-
-  TerminateOnDemandInstance:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${AWS::StackName}-term-ondemand-instance"
-      Description: Terminates launched ondemand autoscaling instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
-      CodeUri: ./target/lambda-pkg.zip
-      Environment:
-        Variables:
-          SPOPTIMIZE_ACTION: 'term-ondemand-instance'
 
   SpotRequestor:
     Type: AWS::StepFunctions::StateMachine
@@ -186,20 +153,17 @@ Resources:
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Terminated",
-                  "Next": "OD Instance Disappeared Or Protected"
+                  "Next": "Terminate Spot"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Protected",
-                  "Next": "OD Instance Disappeared Or Protected"
+                  "Next": "Terminate Spot"
                 },{
                   "Variable": "$.ondemand_instance_status",
-                  "StringEquals": "Auto-Scaling Group Disappeared",
-                  "Next": "AutoScaling Group Disappeared"
+                  "StringEquals": "AutoScaling Group Disappeared",
+                  "Next": "Terminate Spot"
                 }],
                 "Default": "Wait for New ASG Instance"
-              },
-              "OD Instance Disappeared Or Protected": {
-                "Type": "Succeed"
               },
               "Request Spot Instance": {
                 "Type": "Task",
@@ -241,42 +205,9 @@ Resources:
                   "StringEquals": "Failure",
                   "Next": "Sleep after Failed Spot Request"
                 }],
-                "Default": "Check ASG and Tag Spot"
+                "Default": "Attach Spot Instance"
               },
-              "Check ASG and Tag Spot": {
-                "Type": "Task",
-                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-check-asg-and-tag-spot",
-                "Next": "Check ASG Status and Tag Spot?",
-                "ResultPath": "$.check_asg_result",
-                "Retry": [{
-                  "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
-                  "MaxAttempts": 5,
-                  "BackoffRate": 15
-                }]
-              },
-              "Check ASG Status and Tag Spot?": {
-                "Type": "Choice",
-                "Choices": [{
-                  "Variable": "$.check_asg_result",
-                  "StringEquals": "No Capacity Available",
-                  "Next": "Term OnDemand Before Attach Spot"
-                },{
-                  "Variable": "$.check_asg_result",
-                  "StringEquals": "OnDemand Terminated",
-                  "Next": "OD Instance Disappeared Or Protected"
-                },{
-                  "Variable": "$.check_asg_result",
-                  "StringEquals": "Auto-Scaling Group Disappeared",
-                  "Next": "AutoScaling Group Disappeared"
-                },{
-                  "Variable": "$.check_asg_result",
-                  "StringEquals": "Spot Instance Disappeared",
-                  "Next": "Sleep after Failed Spot Request"
-                }],
-                "Default": "Attach Spot Before Term OnDemand"
-              },
-              "AutoScaling Group Disappeared": {
+              "Terminate Spot": {
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-spot-instance",
                 "End": true,
@@ -287,19 +218,7 @@ Resources:
                   "BackoffRate": 15
                 }]
               },
-              "Term OnDemand Before Attach Spot": {
-                "Type": "Task",
-                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-ondemand-attach-spot",
-                "ResultPath": "$.spot_attach_result",
-                "Next": "Check Attachment?",
-                "Retry": [{
-                  "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
-                  "MaxAttempts": 5,
-                  "BackoffRate": 15
-                }]
-              },
-              "Attach Spot Before Term OnDemand": {
+              "Attach Spot Instance": {
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-attach-spot",
                 "ResultPath": "$.spot_attach_result",
@@ -315,12 +234,20 @@ Resources:
                 "Type": "Choice",
                 "Choices": [{
                   "Variable": "$.spot_attach_result",
-                  "StringEquals": "AutoScaling group not sized correctly",
-                  "Next": "AutoScaling Group Disappeared"
+                  "StringEquals": "AutoScaling Group Disappeared",
+                  "Next": "Terminate Spot"
                 },{
                   "Variable": "$.spot_attach_result",
-                  "StringEquals": "Auto-Scaling Group Disappeared",
-                  "Next": "AutoScaling Group Disappeared"
+                  "StringEquals": "Spot Instance Disappeared",
+                  "Next": "Sleep after Failed Spot Request"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "OD Instance Disappeared Or Protected",
+                  "Next": "Terminate Spot"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "AutoScaling group not sized correctly",
+                  "Next": "Terminate Spot"
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "Instance missing",
@@ -354,28 +281,20 @@ Resources:
                 "Choices": [{
                   "Variable": "$.spot_instance_status",
                   "StringEquals": "Healthy",
-                  "Next": "Terminate OD Instance"
+                  "Next": "Success"
                 },{
                   "Variable": "$.spot_instance_status",
                   "StringEquals": "Terminated",
                   "Next": "Sleep after Failed Spot Request"
                 },{
                   "Variable": "$.spot_instance_status",
-                  "StringEquals": "Auto-Scaling Group Disappeared",
-                  "Next": "AutoScaling Group Disappeared"
+                  "StringEquals": "AutoScaling Group Disappeared",
+                  "Next": "Terminate Spot"
                 }],
                 "Default": "Wait for Attachment"
               },
-              "Terminate OD Instance": {
-                "Type": "Task",
-                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-ondemand-instance",
-                "End": true,
-                "Retry": [{
-                  "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
-                  "MaxAttempts": 5,
-                  "BackoffRate": 15
-                }]
+              "Success": {
+                "Type": "Succeed"
               }
             }
           }

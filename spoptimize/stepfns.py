@@ -115,7 +115,7 @@ def get_spot_request_status(spot_request_id):
     return spot_request_result
 
 
-def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id):
+def attach_spot_instance(asg_dict, spot_instance_id, ondemand_instance_id):
     '''
     Attaches spot_instance_id to AutoScaling Group
     '''
@@ -125,7 +125,6 @@ def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id):
     asg = asg_helper.describe_asg(asg_name)
     if not asg:
         logger.info('AutoScaling group {0} no longer exists; Terminating {1}'.format(asg_name, spot_instance_id))
-        ec2_helper.terminate_instance(spot_instance_id)
         return 'AutoScaling Group Disappeared'
     resource_tags = [{'Key': x['Key'], 'Value': x['Value']} for x in asg['Tags']
                      if x.get('PropagateAtLaunch', False) and x.get('Key', '').split(':')[0] != 'aws']
@@ -136,20 +135,15 @@ def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id):
         logger.info('OnDemand instance {} is protected or unhealthy'.format(ondemand_instance_id))
         return 'OD Instance Disappeared Or Protected'
     if asg['DesiredCapacity'] == asg['MaxSize']:
-        logger.info("AutoScaling group {0}'s DesiredCapacity equals MaxSize - no capacity available".format(asg_name))
-        return 'No Capacity Available'
-    logger.info('AutoScaling group {0} has available capacity'.format(asg_name))
-    return 'Capacity Available'
-
-
-def attach_spot_instance(asg_dict, spot_instance_id, ondemand_instance_id=None):
-    if ondemand_instance_id:
+        logger.info("AutoScaling group {0}'s DesiredCapacity equals MaxSize - terminating {1}, then attaching {2}".format(
+            asg_name, ondemand_instance_id, spot_instance_id))
         asg_helper.terminate_instance(ondemand_instance_id, decrement_cap=True)
-    return asg_helper.attach_instance(asg_dict['AutoScalingGroupName'], spot_instance_id)
-
-
-def terminate_asg_instance(instance_id):
-    return asg_helper.terminate_instance(instance_id, decrement_cap=True)
+        return asg_helper.attach_instance(asg_dict['AutoScalingGroupName'], spot_instance_id)
+    logger.info('AutoScaling group {0} has available capacity - attaching {1}, then terminating {2}'.format(
+        asg_name, spot_instance_id, ondemand_instance_id))
+    retval = asg_helper.attach_instance(asg_dict['AutoScalingGroupName'], spot_instance_id)
+    asg_helper.terminate_instance(ondemand_instance_id, decrement_cap=True)
+    return retval
 
 
 def terminate_ec2_instance(instance_id):
