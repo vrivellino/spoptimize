@@ -53,8 +53,9 @@ def handler(event, context):
 
     # Request Spot Instance
     elif action == 'request-spot':
+        client_token = '{0}-{1}'.format(event['ondemand_instance_id'], event['iteration_count'])
         retval = stepfns.request_spot_instance(event['autoscaling_group'], event['launch_az'],
-                                               event['launch_subnet_id'], event['ondemand_instance_id'])
+                                               event['launch_subnet_id'], client_token)
 
     # Check Spot Request
     elif action == 'check-spot':
