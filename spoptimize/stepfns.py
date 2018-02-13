@@ -69,6 +69,7 @@ def init_machine_state(sns_message):
         logger.warning('Autoscaling Group {} has a fixed size'.format(group_name))
         return ({}, 'AutoScaling Group has fixed size')
     return ({
+        'iteration_count': 0,
         'ondemand_instance_id': instance_id,
         'launch_subnet_id': subnet_details['Subnet ID'],
         'launch_az': subnet_details['Availability Zone'],

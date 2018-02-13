@@ -30,6 +30,7 @@ with open(os.path.join(mocks_dir, 'asg-launch-notification.json')) as j:
 launch_notification = json.loads(sns_notification['Message'])
 randseed = (datetime.datetime.now() - datetime.datetime.utcfromtimestamp(0)).total_seconds()
 state_machine_init = {
+    'iteration_count': 0,
     'ondemand_instance_id': launch_notification['EC2InstanceId'],
     'launch_subnet_id': launch_notification['Details']['Subnet ID'],
     'launch_az': launch_notification['Details']['Availability Zone'],

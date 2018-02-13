@@ -43,6 +43,10 @@ def handler(event, context):
                     logger.error('Aborting executing: {}'.format(msg))
         retval = step_fn_resps
 
+    # Increment Count
+    elif action == 'increment-count':
+        retval = int(event['iteration_count']) + 1
+
     # Test New ASG Instance
     elif action == 'ondemand-instance-healthy':
         retval = stepfns.asg_instance_state(event['autoscaling_group'], event['ondemand_instance_id'])

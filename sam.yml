@@ -16,6 +16,10 @@ Parameters:
     Type: String
     Default: "false"
     AllowedValues: ["false", "true"]
+  MaximumIterationCount:
+    Description: Maximum number of iterations
+    Type: Number
+    Default: 48
 
 Globals:
   Function:
@@ -55,6 +59,17 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'ondemand-instance-healthy'
+
+  IncrementCountFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-increment-count"
+      Description: Increment iteration counter
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'increment-count'
 
   RequestSpotInstanceFn:
     Type: AWS::Serverless::Function
@@ -127,11 +142,6 @@ Resources:
                 "SecondsPath": "$.init_sleep_interval",
                 "Next": "Test New ASG Instance"
               },
-              "Sleep after Failed Spot Request": {
-                "Type": "Wait",
-                "SecondsPath": "$.spot_failure_sleep_interval",
-                "Next": "Test New ASG Instance"
-              },
               "Test New ASG Instance": {
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-ondemand-instance-healthy",
@@ -153,17 +163,20 @@ Resources:
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Terminated",
-                  "Next": "Terminate Spot"
+                  "Next": "No Op"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Protected",
-                  "Next": "Terminate Spot"
+                  "Next": "No Op"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "AutoScaling Group Disappeared",
-                  "Next": "Terminate Spot"
+                  "Next": "No Op"
                 }],
                 "Default": "Wait for New ASG Instance"
+              },
+              "No Op": {
+                "Type": "Succeed"
               },
               "Request Spot Instance": {
                 "Type": "Task",
@@ -203,9 +216,37 @@ Resources:
                 },{
                   "Variable": "$.spot_request_result",
                   "StringEquals": "Failure",
-                  "Next": "Sleep after Failed Spot Request"
+                  "Next": "Increment Failure Count"
                 }],
                 "Default": "Attach Spot Instance"
+              },
+              "Increment Failure Count": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-increment-count",
+                "Next": "Check Iteration Count?",
+                "ResultPath": "$.iteration_count",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 5
+                }]
+              },
+              "Check Iteration Count?": {
+                "Type": "Choice",
+                "Choices": [{
+                  "Variable": "$.iteration_count",
+                  "NumericLessThanEquals": ${MaximumIterationCount},
+                  "Next": "Sleep after Failed Spot Request"
+                }],
+                "Default": "Execution Exhaustion"
+              },
+              "Execution Exhaustion": {
+                "Type": "Fail"
+              },
+              "Sleep after Failed Spot Request": {
+                "Type": "Wait",
+                "SecondsPath": "$.spot_failure_sleep_interval",
+                "Next": "Test New ASG Instance"
               },
               "Terminate Spot": {
                 "Type": "Task",
@@ -239,7 +280,7 @@ Resources:
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "Spot Instance Disappeared",
-                  "Next": "Sleep after Failed Spot Request"
+                  "Next": "Increment Failure Count"
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "OD Instance Disappeared Or Protected",
@@ -251,11 +292,11 @@ Resources:
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "Instance missing",
-                  "Next": "Sleep after Failed Spot Request"
+                  "Next": "Increment Failure Count"
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "Invalid instance",
-                  "Next": "Sleep after Failed Spot Request"
+                  "Next": "Increment Failure Count"
                 }],
                 "Default": "Wait for Attachment"
               },
@@ -285,13 +326,16 @@ Resources:
                 },{
                   "Variable": "$.spot_instance_status",
                   "StringEquals": "Terminated",
-                  "Next": "Sleep after Failed Spot Request"
+                  "Next": "Spot Instance Failure"
                 },{
                   "Variable": "$.spot_instance_status",
                   "StringEquals": "AutoScaling Group Disappeared",
                   "Next": "Terminate Spot"
                 }],
                 "Default": "Wait for Attachment"
+              },
+              "Spot Instance Failure": {
+                "Type": "Fail"
               },
               "Success": {
                 "Type": "Succeed"
