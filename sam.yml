@@ -104,7 +104,29 @@ Resources:
         Variables:
           SPOPTIMIZE_ACTION: 'term-spot-instance'
 
-  AttachSpotBeforeTermOnDemandFn:
+  AcquireAutoScalingGroupLock:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-acquire-lock"
+      Description: Acquires lock for autoscaling group
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'acquire-lock'
+
+  ReleaseAutoScalingGroupLock:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-release-lock"
+      Description: Releases lock for autoscaling group
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Environment:
+        Variables:
+          SPOPTIMIZE_ACTION: 'release-lock'
+
+  AttachSpot:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${AWS::StackName}-attach-spot"
@@ -218,7 +240,7 @@ Resources:
                   "StringEquals": "Failure",
                   "Next": "Increment Failure Count"
                 }],
-                "Default": "Attach Spot Instance"
+                "Default": "Acquire AutoScaling Group Lock"
               },
               "Increment Failure Count": {
                 "Type": "Task",
@@ -248,11 +270,40 @@ Resources:
                 "SecondsPath": "$.spot_failure_sleep_interval",
                 "Next": "Test New ASG Instance"
               },
+              "Release Lock Before Spot Term": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-release-lock",
+                "ResultPath": "$.asg_lock",
+                "Next": "Terminate Spot",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 2.5
+                }]
+              },
               "Terminate Spot": {
                 "Type": "Task",
                 "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-term-spot-instance",
                 "End": true,
                 "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 2.5
+                }]
+              },
+              "Acquire AutoScaling Group Lock": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-acquire-lock",
+                "ResultPath": "$.asg_lock",
+                "Next": "Attach Spot Instance",
+                "Retry": [{
+                  "ErrorEquals": [ "GroupLocked" ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 7,
+                  "BackoffRate": 1.5
+                },{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 5,
                   "MaxAttempts": 5,
@@ -276,29 +327,41 @@ Resources:
                 "Choices": [{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "AutoScaling Group Disappeared",
-                  "Next": "Terminate Spot"
-                },{
-                  "Variable": "$.spot_attach_result",
-                  "StringEquals": "Spot Instance Disappeared",
-                  "Next": "Increment Failure Count"
+                  "Next": "Release Lock Before Spot Term"
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "OD Instance Disappeared Or Protected",
-                  "Next": "Terminate Spot"
+                  "Next": "Release Lock Before Spot Term"
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "AutoScaling group not sized correctly",
-                  "Next": "Terminate Spot"
+                  "Next": "Release Lock Before Spot Term"
+                },{
+                  "Variable": "$.spot_attach_result",
+                  "StringEquals": "Spot Instance Disappeared",
+                  "Next": "Release Lock Before Increment"
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "Instance missing",
-                  "Next": "Increment Failure Count"
+                  "Next": "Release Lock Before Increment"
                 },{
                   "Variable": "$.spot_attach_result",
                   "StringEquals": "Invalid instance",
-                  "Next": "Increment Failure Count"
+                  "Next": "Release Lock Before Increment"
                 }],
                 "Default": "Wait for Attachment"
+              },
+              "Release Lock Before Increment": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-release-lock",
+                "ResultPath": "$.asg_lock",
+                "Next": "Increment Failure Count",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 2.5
+                }]
               },
               "Wait for Attachment": {
                 "Type": "Wait",
@@ -322,23 +385,44 @@ Resources:
                 "Choices": [{
                   "Variable": "$.spot_instance_status",
                   "StringEquals": "Healthy",
-                  "Next": "Success"
+                  "Next": "Release Lock after Success"
                 },{
                   "Variable": "$.spot_instance_status",
                   "StringEquals": "Terminated",
-                  "Next": "Spot Instance Failure"
+                  "Next": "Release Lock After Spot Failure"
                 },{
                   "Variable": "$.spot_instance_status",
                   "StringEquals": "AutoScaling Group Disappeared",
-                  "Next": "Terminate Spot"
+                  "Next": "Release Lock Before Spot Term"
                 }],
                 "Default": "Wait for Attachment"
               },
-              "Spot Instance Failure": {
+              "Release Lock After Spot Failure": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-release-lock",
+                "ResultPath": "$.asg_lock",
+                "Next": "Unrecoverable Spot Instance Failure",
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 2.5
+                }]
+              },
+              "Unrecoverable Spot Instance Failure": {
                 "Type": "Fail"
               },
-              "Success": {
-                "Type": "Succeed"
+              "Release Lock after Success": {
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackBasename}-release-lock",
+                "ResultPath": "$.asg_lock",
+                "End": true,
+                "Retry": [{
+                  "ErrorEquals": [ "States.ALL" ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 5,
+                  "BackoffRate": 2.5
+                }]
               }
             }
           }

@@ -65,6 +65,14 @@ def handler(event, context):
     elif action == 'term-spot-instance':
         retval = stepfns.terminate_ec2_instance(event.get('spot_request_result'))
 
+    # Acquire AutoScaling Group Lock
+    elif action == 'acquire-lock':
+        retval = True
+
+    # Release AutoScaling Group Lock
+    elif action == 'release-lock':
+        retval = True
+
     # Attach Spot Instance
     elif action == 'attach-spot':
         retval = stepfns.attach_spot_instance(event['autoscaling_group'], event['spot_request_result'], event['ondemand_instance_id'])
