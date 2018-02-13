@@ -139,9 +139,9 @@ Resources:
                 "ResultPath": "$.ondemand_instance_status",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
+                  "IntervalSeconds": 5,
                   "MaxAttempts": 5,
-                  "BackoffRate": 15
+                  "BackoffRate": 2.5
                 }]
               },
               "OD Instance Healthy?": {
@@ -172,9 +172,9 @@ Resources:
                 "Next": "Wait For Spot Request",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
+                  "IntervalSeconds": 5,
                   "MaxAttempts": 5,
-                  "BackoffRate": 15
+                  "BackoffRate": 2.5
                 }]
               },
               "Wait For Spot Request": {
@@ -189,9 +189,9 @@ Resources:
                 "ResultPath": "$.spot_request_result",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
+                  "IntervalSeconds": 5,
                   "MaxAttempts": 5,
-                  "BackoffRate": 15
+                  "BackoffRate": 2.5
                 }]
               },
               "Spot Request Status?": {
@@ -213,9 +213,9 @@ Resources:
                 "End": true,
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
+                  "IntervalSeconds": 5,
                   "MaxAttempts": 5,
-                  "BackoffRate": 15
+                  "BackoffRate": 2.5
                 }]
               },
               "Attach Spot Instance": {
@@ -225,9 +225,9 @@ Resources:
                 "Next": "Check Attachment?",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
+                  "IntervalSeconds": 5,
                   "MaxAttempts": 5,
-                  "BackoffRate": 15
+                  "BackoffRate": 2.5
                 }]
               },
               "Check Attachment?": {
@@ -271,9 +271,9 @@ Resources:
                 "ResultPath": "$.spot_instance_status",
                 "Retry": [{
                   "ErrorEquals": [ "States.ALL" ],
-                  "IntervalSeconds": 10,
+                  "IntervalSeconds": 5,
                   "MaxAttempts": 5,
-                  "BackoffRate": 15
+                  "BackoffRate": 2.5
                 }]
               },
               "Spot Instance Healthy?": {
