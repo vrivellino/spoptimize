@@ -29,9 +29,9 @@ def terminate_instance(instance_id):
 
 
 def tag_instance(instance_id, orig_instance_id, resource_tags=[]):
-    logger.info('Tagging EC2 instance {0} with {1}'.format(instance_id, resource_tags))
     my_tags = copy.copy(resource_tags)
-    my_tags.append({'Key': 'spoptimize:orig_instance_id', 'Value': orig_instance_id})
+    my_tags.append({'Key': 'spoptimize:orig_instance_id', 'Value': orig_instance_id or 'UNKNWON'})
+    logger.info('Tagging EC2 instance {0} with {1}'.format(instance_id, resource_tags))
     try:
         ec2.create_tags(Resources=[instance_id], Tags=my_tags)
     except ClientError as c:
