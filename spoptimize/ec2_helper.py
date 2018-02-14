@@ -57,3 +57,21 @@ def is_instance_running(instance_id):
     instance_state = resp['Reservations'][0]['Instances'][0]['State']['Name']
     logger.info('EC2 Instance state of {0}: {1}'.format(instance_id, instance_state))
     return resp['Reservations'][0]['Instances'][0]['State']['Name'] == 'running'
+
+
+def is_spoptimize_instance(instance_id):
+    logger.debug('Determining if {} was launched by Spoptimize'.format(instance_id))
+    try:
+        resp = ec2.describe_instances(InstanceIds=[instance_id])
+    except ClientError as c:
+        if c.response['Error']['Code'] == 'InvalidInstanceID.NotFound':
+            logger.warning('{} not found'.format(instance_id))
+            return None
+        else:
+            raise
+    spoptimize_tags = [x for x in resp['Reservations'][0]['Instances'][0].get('Tags', [])
+                       if x['Key'].split(':')[0] == 'spoptimize']
+    if spoptimize_tags:
+        logger.debug('{0} has spoptimize tags: {1}'.format(instance_id, spoptimize_tags))
+        return True
+    return False
