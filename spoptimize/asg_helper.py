@@ -1,6 +1,5 @@
 import boto3
 import logging
-import os
 import re
 
 from botocore.exceptions import ClientError
@@ -8,10 +7,6 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger()
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
-
-# this adds vendored directory to the Python import path
-here = os.path.dirname(os.path.realpath(__file__))
-mocks_dir = os.path.join(here, 'resources', 'mock_data')
 
 autoscaling = boto3.client('autoscaling')
 

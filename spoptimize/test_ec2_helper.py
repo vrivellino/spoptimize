@@ -22,9 +22,11 @@ for file in os.listdir(mocks_dir):
 
 class TestTerminateInstance(unittest.TestCase):
 
+    def setUp(self):
+        ec2_helper.ec2 = Mock()
+
     def test_terminate_instance(self):
         logger.debug('TestTerminateInstance.terminate_instance')
-        ec2_helper.ec2 = Mock()
         ec2_helper.terminate_instance('i-abcd123')
         ec2_helper.ec2.terminate_instances.assert_called()
 
@@ -43,9 +45,11 @@ class TestTerminateInstance(unittest.TestCase):
 
 class TestTagInstance(unittest.TestCase):
 
+    def setUp(self):
+        ec2_helper.ec2 = Mock()
+
     def test_tag_instance(self):
         logger.debug('TestEc2Helper.test_tag_instance')
-        ec2_helper.ec2 = Mock()
         res = ec2_helper.tag_instance('i-9999999', 'i-abcd123', [{'Key': 'testkey', 'Value': 'testval'}])
         ec2_helper.ec2.create_tags.assert_called_once_with(
             Resources=['i-9999999'],
@@ -55,7 +59,6 @@ class TestTagInstance(unittest.TestCase):
 
     def test_tag_instance_no_tags(self):
         logger.debug('TestTagInstance.test_tag_instance_no_tags')
-        ec2_helper.ec2 = Mock()
         res = ec2_helper.tag_instance('i-9999999', 'i-abcd123', [])
         ec2_helper.ec2.create_tags.assert_called_once_with(
             Resources=['i-9999999'],
@@ -79,6 +82,7 @@ class TestTagInstance(unittest.TestCase):
 class TestIsInstanceRunning(unittest.TestCase):
 
     def setUp(self):
+        ec2_helper.ec2 = Mock()
         self.mock_attrs = copy.deepcopy(mock_attrs)
 
     def test_running_instance(self):
