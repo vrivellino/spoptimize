@@ -66,6 +66,22 @@ Resources:
           Properties:
             Topic: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SnsTopicName}"
 
+  SpotWarningFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-spot-warning"
+      Description: Processes EC2 spot instance warnings and terminates via autoscaling API
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      CodeUri: ./target/lambda-pkg.zip
+      Handler: handler.spot_warning_handler
+      Events:
+        SpotWarningForSpoptimize:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              source: ["aws.ec2"]
+              detail-type: ["EC2 Spot Instance Interruption Warning"]
+
   TestNewAsgInstanceFn:
     Type: AWS::Serverless::Function
     Properties:

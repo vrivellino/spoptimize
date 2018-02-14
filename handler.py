@@ -3,6 +3,7 @@ import json
 
 from os import environ
 
+import spoptimize.spot_warning as spot_warning
 import spoptimize.stepfns as stepfns
 import spoptimize.util as util
 from spoptimize.logging_helper import logging
@@ -107,3 +108,12 @@ def handler(event, context):
     # 'An error occurred during JSON serialization of response' Exception
     util.walk_dict_for_datetime(retval)
     return retval
+
+
+def spot_warning_handler(event, context):
+    logger.debug('EVENT: {}'.format(json.dumps(event, indent=2, default=util.json_dumps_converter)))
+    if environ.get('SPOPTIMIZE_DEBUG', 'false').lower() not in ['0', 'no', 'false']:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+    spot_warning.process_warning_event(event)
