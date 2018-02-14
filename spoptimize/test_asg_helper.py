@@ -228,7 +228,7 @@ class TestAttachInstance(unittest.TestCase):
 
     def test_attach_instance_invalid_state(self):
         logger.debug('TestAttachInstance.test_attach_instance_invalid_state')
-        expected_res = 'Auto-Scaling Group Disappeared'
+        expected_res = 'AutoScaling Group Disappeared'
         self.mock_attrs['attach_instances.side_effect'] = ClientError({
             'Error': {
                 'Code': 'ValidationError',

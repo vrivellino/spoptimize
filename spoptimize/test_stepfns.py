@@ -30,6 +30,7 @@ with open(os.path.join(mocks_dir, 'asg-launch-notification.json')) as j:
 launch_notification = json.loads(sns_notification['Message'])
 randseed = (datetime.datetime.now() - datetime.datetime.utcfromtimestamp(0)).total_seconds()
 state_machine_init = {
+    'iteration_count': 0,
     'ondemand_instance_id': launch_notification['EC2InstanceId'],
     'launch_subnet_id': launch_notification['Details']['Subnet ID'],
     'launch_az': launch_notification['Details']['Availability Zone'],
@@ -50,6 +51,7 @@ class TestInitMachineState(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_standard_asg(self):
         logger.debug('TestInitMachineState.test_standard_asg')
@@ -145,6 +147,7 @@ class TestAsgInstanceStatus(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_valid_asg(self):
         logger.debug('TestAsgInstanceStatus.test_valid_asg')
@@ -176,6 +179,7 @@ class TestRequestSpotInstance(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_request_spot(self):
         logger.debug('TestRequestSpotInstance.test_request_spot')
@@ -197,6 +201,7 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_get_spot_request_status(self):
         logger.debug('TestGetSpotRequestStatus.test_get_spot_request_status')
@@ -234,48 +239,76 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         self.assertEqual(res, 'Pending')
 
 
-class TestCheckAsgAndTagSpot(unittest.TestCase):
+class TestAttachSpotInstance(unittest.TestCase):
 
     def setUp(self):
         self.asg_dict = copy.deepcopy(mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0])
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
-    def test_capacity_available(self):
-        logger.debug('TestCheckAsgAndTagSpot.test_capacity_available')
-        expected_res = 'Capacity Available'
-        expected_tags = [{'Key': x['Key'], 'Value': x['Value']} for x in self.asg_dict['Tags']
-                         if x.get('PropagateAtLaunch', False) and x.get('Key', '').split(':')[0] != 'aws']
+    def test_no_capacity(self):
+        logger.debug('TestAttachSpotInstance.test_no_capacity')
+        expected_res = 'Success'
+        self.asg_dict['DesiredCapacity'] = self.asg_dict['MaxSize']
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict,
-            'get_instance_status.return_value': 'Healthy'
+            'get_instance_status.return_value': 'Healthy',
+            'attach_instance.return_value': 'Success'
         })
         stepfns.ec2_helper = Mock(**{
             'tag_instance.return_value': True
         })
-        res = stepfns.check_asg_and_tag_spot(self.asg_dict, 'i-9999999', 'i-abcd123')
+        res = stepfns.attach_spot_instance(self.asg_dict, 'i-9999999', 'i-abcd123')
+        stepfns.asg_helper.describe_asg.assert_called()
+        stepfns.ec2_helper.terminate_instance.assert_not_called()
+        stepfns.ec2_helper.tag_instance.assert_called()
+        stepfns.asg_helper.get_instance_status.assert_called()
+        stepfns.asg_helper.attach_instance.assert_called_once_with(
+            self.asg_dict['AutoScalingGroupName'], 'i-9999999')
+        stepfns.asg_helper.terminate_instance.assert_called_once_with('i-abcd123', decrement_cap=True)
+        self.assertEqual(res, expected_res)
+
+    def test_capacity_available(self):
+        logger.debug('TestAttachSpotInstance.test_capacity_available')
+        expected_res = 'Success'
+        expected_tags = [{'Key': x['Key'], 'Value': x['Value']} for x in self.asg_dict['Tags']
+                         if x.get('PropagateAtLaunch', False) and x.get('Key', '').split(':')[0] != 'aws']
+        stepfns.asg_helper = Mock(**{
+            'describe_asg.return_value': self.asg_dict,
+            'get_instance_status.return_value': 'Healthy',
+            'attach_instance.return_value': 'Success'
+        })
+        stepfns.ec2_helper = Mock(**{
+            'tag_instance.return_value': True
+        })
+        res = stepfns.attach_spot_instance(self.asg_dict, 'i-9999999', 'i-abcd123')
         stepfns.asg_helper.describe_asg.assert_called()
         stepfns.ec2_helper.terminate_instance.assert_not_called()
         stepfns.ec2_helper.tag_instance.assert_called_once_with('i-9999999', 'i-abcd123', expected_tags)
         stepfns.asg_helper.get_instance_status.assert_called_once_with('i-abcd123')
+        stepfns.asg_helper.attach_instance.assert_called_once_with(
+            self.asg_dict['AutoScalingGroupName'], 'i-9999999')
+        stepfns.asg_helper.terminate_instance.assert_called_once_with('i-abcd123', decrement_cap=True)
         self.assertEqual(res, expected_res)
 
     def test_no_asg(self):
-        logger.debug('TestCheckAsgAndTagSpot.test_no_asg')
+        logger.debug('TestAttachSpotInstance.test_no_asg')
         expected_res = 'AutoScaling Group Disappeared'
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': {}
         })
-        res = stepfns.check_asg_and_tag_spot(self.asg_dict, 'i-9999999', 'i-abcd123')
+        res = stepfns.attach_spot_instance(self.asg_dict, 'i-9999999', 'i-abcd123')
         stepfns.asg_helper.describe_asg.assert_called()
         stepfns.ec2_helper.tag_instance.assert_not_called()
-        stepfns.ec2_helper.terminate_instance.assert_called_once_with('i-9999999')
         stepfns.asg_helper.get_instance_status.assert_not_called()
+        stepfns.asg_helper.attach_instance.assert_not_called()
+        stepfns.asg_helper.terminate_instance.assert_not_called()
         self.assertEqual(res, expected_res)
 
     def test_spot_disappeared(self):
-        logger.debug('TestCheckAsgAndTagSpot.test_spot_disappeared')
+        logger.debug('TestAttachSpotInstance.test_spot_disappeared')
         expected_res = 'Spot Instance Disappeared'
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict,
@@ -284,15 +317,16 @@ class TestCheckAsgAndTagSpot(unittest.TestCase):
         stepfns.ec2_helper = Mock(**{
             'tag_instance.return_value': False
         })
-        res = stepfns.check_asg_and_tag_spot(self.asg_dict, 'i-9999999', 'i-abcd123')
+        res = stepfns.attach_spot_instance(self.asg_dict, 'i-9999999', 'i-abcd123')
         stepfns.asg_helper.describe_asg.assert_called()
-        stepfns.ec2_helper.terminate_instance.assert_not_called()
         stepfns.ec2_helper.tag_instance.assert_called()
         stepfns.asg_helper.get_instance_status.assert_not_called()
+        stepfns.asg_helper.attach_instance.assert_not_called()
+        stepfns.asg_helper.terminate_instance.assert_not_called()
         self.assertEqual(res, expected_res)
 
     def test_od_disappeared_or_protected(self):
-        logger.debug('TestCheckAsgAndTagSpot.test_od_disappeared_or_protected')
+        logger.debug('TestAttachSpotInstance.test_od_disappeared_or_protected')
         expected_res = 'OD Instance Disappeared Or Protected'
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict,
@@ -301,75 +335,12 @@ class TestCheckAsgAndTagSpot(unittest.TestCase):
         stepfns.ec2_helper = Mock(**{
             'tag_instance.return_value': True
         })
-        res = stepfns.check_asg_and_tag_spot(self.asg_dict, 'i-9999999', 'i-abcd123')
+        res = stepfns.attach_spot_instance(self.asg_dict, 'i-9999999', 'i-abcd123')
         stepfns.asg_helper.describe_asg.assert_called()
-        stepfns.ec2_helper.terminate_instance.assert_not_called()
         stepfns.ec2_helper.tag_instance.assert_called()
         stepfns.asg_helper.get_instance_status.assert_called()
-        self.assertEqual(res, expected_res)
-
-    def test_no_capacity(self):
-        logger.debug('TestCheckAsgAndTagSpot.test_no_capacity')
-        expected_res = 'No Capacity Available'
-        self.asg_dict['DesiredCapacity'] = self.asg_dict['MaxSize']
-        stepfns.asg_helper = Mock(**{
-            'describe_asg.return_value': self.asg_dict,
-            'get_instance_status.return_value': 'Healthy'
-        })
-        stepfns.ec2_helper = Mock(**{
-            'tag_instance.return_value': True
-        })
-        res = stepfns.check_asg_and_tag_spot(self.asg_dict, 'i-9999999', 'i-abcd123')
-        stepfns.asg_helper.describe_asg.assert_called()
-        stepfns.ec2_helper.terminate_instance.assert_not_called()
-        stepfns.ec2_helper.tag_instance.assert_called()
-        stepfns.asg_helper.get_instance_status.assert_called()
-        self.assertEqual(res, expected_res)
-
-
-class TestAttachSpotInstance(unittest.TestCase):
-
-    def setUp(self):
-        stepfns.asg_helper = Mock()
-        stepfns.ec2_helper = Mock()
-        stepfns.spot_helper = Mock()
-
-    def test_term_ondemand(self):
-        logger.debug('TestAttachSpotInstance.test_term_ondemand')
-        stepfns.asg_helper = Mock(**{
-            'attach_instance.return_value': {'dummy': 'response'}
-        })
-        res = stepfns.attach_spot_instance({'AutoScalingGroupName': 'group-name'}, 'i-9999999', 'i-abcd123')
-        stepfns.asg_helper.terminate_instance.assert_called_once_with('i-abcd123', decrement_cap=True)
-        stepfns.asg_helper.attach_instance.assert_called_once_with('group-name', 'i-9999999')
-        self.assertDictEqual(res, {'dummy': 'response'})
-
-    def test_no_ondemand(self):
-        logger.debug('TestAttachSpotInstance.test_term_ondemand')
-        stepfns.asg_helper = Mock(**{
-            'attach_instance.return_value': {'dummy': 'response'}
-        })
-        res = stepfns.attach_spot_instance({'AutoScalingGroupName': 'group-name'}, 'i-9999999')
         stepfns.asg_helper.terminate_instance.assert_not_called()
-        stepfns.asg_helper.attach_instance.assert_called_once_with('group-name', 'i-9999999')
-        self.assertDictEqual(res, {'dummy': 'response'})
-
-
-class TestTerminateAsgInstance(unittest.TestCase):
-
-    def setUp(self):
-        stepfns.asg_helper = Mock()
-        stepfns.ec2_helper = Mock()
-        stepfns.spot_helper = Mock()
-
-    def test_term_ondemand(self):
-        logger.debug('TestTerminateAsgInstance.test_term_ondemand')
-        stepfns.asg_helper = Mock(**{
-            'terminate_instance.return_value': {'dummy': 'response'}
-        })
-        res = stepfns.terminate_asg_instance('i-abcd123')
-        stepfns.asg_helper.terminate_instance.assert_called_once_with('i-abcd123', decrement_cap=True)
-        self.assertDictEqual(res, {'dummy': 'response'})
+        self.assertEqual(res, expected_res)
 
 
 class TestTerminateEc2Instance(unittest.TestCase):
@@ -395,6 +366,80 @@ class TestTerminateEc2Instance(unittest.TestCase):
         })
         stepfns.terminate_ec2_instance(None)
         stepfns.ec2_helper.terminate_instance.assert_not_called()
+
+
+class TestAcquireLock(unittest.TestCase):
+
+    def setUp(self):
+        self.table_name = 'ddbtable'
+        self.group_name = 'group-name'
+        self.exec_arn = 'my:execution:arn'
+        stepfns.asg_helper = Mock()
+        stepfns.ec2_helper = Mock()
+        stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
+
+    def test_lock_acquired_no_existing(self):
+        logger.debug('TestAcquireLock.test_lock_acquired_no_existing')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': True
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.ddb_lock_helper.get_item.assert_not_called()
+        stepfns.ddb_lock_helper.is_execution_running.assert_not_called()
+        self.assertTrue(res)
+
+    def test_lock_already_acquired(self):
+        logger.debug('TestAcquireLock.test_lock_already_acquired')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': False,
+            'get_item.return_value': self.exec_arn
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.ddb_lock_helper.get_item.assert_called_once()
+        stepfns.ddb_lock_helper.is_execution_running.assert_not_called()
+        self.assertTrue(res)
+
+    def test_lock_not_acquired_existing_owner(self):
+        logger.debug('TestAcquireLock.test_lock_not_acquired_existing_owner')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': False,
+            'get_item.return_value': 'other:execution:arn',
+            'is_execution_running.return_value': True
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.ddb_lock_helper.get_item.assert_called_once()
+        stepfns.ddb_lock_helper.is_execution_running.assert_called_once()
+        self.assertFalse(res)
+
+    def test_lock_acquired_old_owner(self):
+        logger.debug('TestAcquireLock.test_lock_acquired_old_owner')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.side_effect': [False, True],
+            'get_item.return_value': 'other:execution:arn',
+            'is_execution_running.return_value': False
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called()
+        stepfns.ddb_lock_helper.get_item.assert_called_once()
+        stepfns.ddb_lock_helper.is_execution_running.assert_called_once()
+        self.assertTrue(res)
+
+    def test_lock_not_acquired_old_owner(self):
+        logger.debug('TestAcquireLock.test_lock_not_acquired_old_owner')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': False,
+            'get_item.return_value': 'other:execution:arn',
+            'is_execution_running.return_value': False
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called()
+        stepfns.ddb_lock_helper.get_item.assert_called_once()
+        stepfns.ddb_lock_helper.is_execution_running.assert_called_once()
+        self.assertFalse(res)
 
 
 if __name__ == '__main__':

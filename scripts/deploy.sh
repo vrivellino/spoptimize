@@ -39,6 +39,7 @@ if [[ -n $do_iam ]]; then
     # TODO primary/global region?
     echo 'Deploying IAM stack ...'
     aws cloudformation deploy \
+        --parameter-overrides StackBasename=$stack_basename \
         --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
         --template-file "$basedir/iam-global.yml" \
         --stack-name "$stack_basename-iam-global"
@@ -68,7 +69,7 @@ if [[ -n $do_sam ]]; then
     echo
     echo 'Deploying Spoptimize ...'
     aws cloudformation deploy \
-        --parameter-overrides DebugLambdas=$lambda_debug_log \
+        --parameter-overrides StackBasename=$stack_basename DebugLambdas=$lambda_debug_log \
         --template-file "$basedir/target/sam_output.yml" \
         --stack-name "$stack_basename" || exit $?
 fi

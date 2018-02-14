@@ -13,6 +13,10 @@ logger.setLevel(logging.INFO)
 sfn = boto3.client('stepfunctions')
 
 
+class GroupLocked(Exception):
+    pass
+
+
 def handler(event, context):
     logger.debug('EVENT: {}'.format(json.dumps(event, indent=2, default=util.json_dumps_converter)))
     action = environ.get('SPOPTIMIZE_ACTION').lower()
@@ -34,6 +38,7 @@ def handler(event, context):
                 if init_state['autoscaling_group']:
                     logger.debug('Starting execution of {0} with name {1}'.format(state_machine_arn, init_state['ondemand_instance_id']))
                     logger.debug('Input: {}'.format(json.dumps(init_state, indent=2, default=util.json_dumps_converter)))
+                    # NOTE: execution ARN is used for locks. if name changes, update lock acquisition & release
                     step_fn_resps.append(sfn.start_execution(
                         stateMachineArn=state_machine_arn,
                         name=init_state['ondemand_instance_id'],
@@ -43,42 +48,58 @@ def handler(event, context):
                     logger.error('Aborting executing: {}'.format(msg))
         retval = step_fn_resps
 
+    # Increment Count
+    elif action == 'increment-count':
+        retval = int(event['iteration_count']) + 1
+
     # Test New ASG Instance
     elif action == 'ondemand-instance-healthy':
         retval = stepfns.asg_instance_state(event['autoscaling_group'], event['ondemand_instance_id'])
 
     # Request Spot Instance
     elif action == 'request-spot':
+        client_token = '{0}-{1}'.format(event['ondemand_instance_id'], event['iteration_count'])
         retval = stepfns.request_spot_instance(event['autoscaling_group'], event['launch_az'],
-                                               event['launch_subnet_id'], event['ondemand_instance_id'])
+                                               event['launch_subnet_id'], client_token)
 
     # Check Spot Request
     elif action == 'check-spot':
         retval = stepfns.get_spot_request_status(event['spot_request']['SpotInstanceRequestId'])
 
-    # Check ASG and Tag Spot
-    elif action == 'check-asg-and-tag-spot':
-        retval = stepfns.check_asg_and_tag_spot(event['autoscaling_group'], event['spot_request_result'], event['ondemand_instance_id'])
-
     # AutoScaling Group Disappeared
     elif action == 'term-spot-instance':
         retval = stepfns.terminate_ec2_instance(event.get('spot_request_result'))
 
-    # Term OnDemand Before Attach Spot
-    elif action == 'term-ondemand-attach-spot':
-        retval = stepfns.attach_spot_instance(event['autoscaling_group'], event['spot_request_result'], event['ondemand_instance_id'])
+    # Acquire AutoScaling Group Lock
+    elif action == 'acquire-lock':
+        # Generate execution ARN from state machine ARN
+        my_arn = environ['SPOPTIMIZE_SFN_ARN'].split(':')
+        my_arn[5] = 'execution'
+        my_arn.append(event['ondemand_instance_id'])
+        if stepfns.acquire_lock(environ['SPOPTIMIZE_LOCK_TABLE'],
+                                event['autoscaling_group']['AutoScalingGroupName'],
+                                ':'.join(my_arn)):
+            retval = True
+        else:
+            raise GroupLocked('Unable to acquire lock')
 
-    # Attach Spot Before Term OnDemand
+    # Release AutoScaling Group Lock
+    elif action == 'release-lock':
+        # Generate execution ARN from state machine ARN
+        my_arn = environ['SPOPTIMIZE_SFN_ARN'].split(':')
+        my_arn[5] = 'execution'
+        my_arn.append(event['ondemand_instance_id'])
+        retval = stepfns.release_lock(environ['SPOPTIMIZE_LOCK_TABLE'],
+                                      event['autoscaling_group']['AutoScalingGroupName'],
+                                      ':'.join(my_arn))
+
+    # Attach Spot Instance
     elif action == 'attach-spot':
-        retval = stepfns.attach_spot_instance(event['autoscaling_group'], event['spot_request_result'], None)
+        retval = stepfns.attach_spot_instance(event['autoscaling_group'], event['spot_request_result'], event['ondemand_instance_id'])
 
     # Test Attached Instance
     elif action == 'spot-instance-healthy':
         retval = stepfns.asg_instance_state(event['autoscaling_group'], event['spot_request_result'])
-
-    # Terminate OD Instance
-    elif action == 'term-ondemand-instance':
-        retval = stepfns.terminate_asg_instance(event['ondemand_instance_id'])
 
     else:
         raise Exception('SPOPTIMIZE_ACTION env var specifies unknown action: {}'.format(action))

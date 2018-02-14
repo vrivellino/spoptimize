@@ -2,6 +2,10 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: IAM Resources for Spoptimize
 
 Parameters:
+  StackBasename:
+    Description: Base name of Spoptimize stacks
+    Type: String
+    Default: spoptimize
   RolePath:
     Description: Path to pass to IAM resources
     Type: String
@@ -20,7 +24,7 @@ Resources:
           - Sid: InvokeLambda
             Effect: Allow
             Action: lambda:InvokeFunction
-            Resource: !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:spoptimize*"
+            Resource: !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:${StackBasename}*"
 
   StateMachineRole:
     Type: AWS::IAM::Role
@@ -64,13 +68,25 @@ Resources:
             - ec2:DescribeInstances
             - ec2:DescribeTags
             - ec2:RequestSpotInstances
+            - ec2:TerminateInstances
           Resource: "*"
-        - Sid: StepFns
+        - Sid: StepFnStart
+          Effect: Allow
+          Action:
+            - states:StartExecution
+          Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StackBasename}-*"
+        - Sid: StepFnDescribeExec
           Effect: Allow
           Action:
             - states:DescribeExecution
-            - states:StartExecution
-          Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:spoptimize-*"
+          Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${StackBasename}-*"
+        - Sid: DynamoDbLockTable
+          Effect: Allow
+          Action:
+            - dynamodb:DeleteItem
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+          Resource: !Sub "arn:aws:dynamodb:*:${AWS::AccountId}:table/${StackBasename}-autoscaling-group-locks"
         - Sid: PassEc2IamRole
           Effect: Allow
           Action: iam:PassRole

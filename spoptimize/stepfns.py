@@ -1,9 +1,12 @@
 # import json
 import logging
 import re
+
+from datetime import datetime, timedelta
 from random import random
 
 import asg_helper
+import ddb_lock_helper
 import ec2_helper
 import spot_helper
 # import util
@@ -69,6 +72,7 @@ def init_machine_state(sns_message):
         logger.warning('Autoscaling Group {} has a fixed size'.format(group_name))
         return ({}, 'AutoScaling Group has fixed size')
     return ({
+        'iteration_count': 0,
         'ondemand_instance_id': instance_id,
         'launch_subnet_id': subnet_details['Subnet ID'],
         'launch_az': subnet_details['Availability Zone'],
@@ -115,7 +119,7 @@ def get_spot_request_status(spot_request_id):
     return spot_request_result
 
 
-def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id):
+def attach_spot_instance(asg_dict, spot_instance_id, ondemand_instance_id):
     '''
     Attaches spot_instance_id to AutoScaling Group
     '''
@@ -125,7 +129,6 @@ def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id):
     asg = asg_helper.describe_asg(asg_name)
     if not asg:
         logger.info('AutoScaling group {0} no longer exists; Terminating {1}'.format(asg_name, spot_instance_id))
-        ec2_helper.terminate_instance(spot_instance_id)
         return 'AutoScaling Group Disappeared'
     resource_tags = [{'Key': x['Key'], 'Value': x['Value']} for x in asg['Tags']
                      if x.get('PropagateAtLaunch', False) and x.get('Key', '').split(':')[0] != 'aws']
@@ -136,22 +139,45 @@ def check_asg_and_tag_spot(asg_dict, spot_instance_id, ondemand_instance_id):
         logger.info('OnDemand instance {} is protected or unhealthy'.format(ondemand_instance_id))
         return 'OD Instance Disappeared Or Protected'
     if asg['DesiredCapacity'] == asg['MaxSize']:
-        logger.info("AutoScaling group {0}'s DesiredCapacity equals MaxSize - no capacity available".format(asg_name))
-        return 'No Capacity Available'
-    logger.info('AutoScaling group {0} has available capacity'.format(asg_name))
-    return 'Capacity Available'
-
-
-def attach_spot_instance(asg_dict, spot_instance_id, ondemand_instance_id=None):
-    if ondemand_instance_id:
+        logger.info("AutoScaling group {0}'s DesiredCapacity equals MaxSize - terminating {1}, then attaching {2}".format(
+            asg_name, ondemand_instance_id, spot_instance_id))
         asg_helper.terminate_instance(ondemand_instance_id, decrement_cap=True)
-    return asg_helper.attach_instance(asg_dict['AutoScalingGroupName'], spot_instance_id)
-
-
-def terminate_asg_instance(instance_id):
-    return asg_helper.terminate_instance(instance_id, decrement_cap=True)
+        return asg_helper.attach_instance(asg_dict['AutoScalingGroupName'], spot_instance_id)
+    logger.info('AutoScaling group {0} has available capacity - attaching {1}, then terminating {2}'.format(
+        asg_name, spot_instance_id, ondemand_instance_id))
+    retval = asg_helper.attach_instance(asg_dict['AutoScalingGroupName'], spot_instance_id)
+    asg_helper.terminate_instance(ondemand_instance_id, decrement_cap=True)
+    return retval
 
 
 def terminate_ec2_instance(instance_id):
     if instance_id:
         return ec2_helper.terminate_instance(instance_id)
+
+
+def acquire_lock(table_name, group_name, my_execution_arn):
+    logger.info('Acquiring lock for {}'.format(group_name))
+    logger.debug('My execution ARN is {}'.format(my_execution_arn))
+    ttl = int((timedelta(days=7) + datetime.now() - datetime.utcfromtimestamp(0)).total_seconds())
+    if ddb_lock_helper.put_item(table_name, group_name, my_execution_arn, ttl):
+        logger.info('Lock for {} Acquired'.format(group_name))
+        return True
+    current_owner = ddb_lock_helper.get_item(table_name, group_name)
+    if current_owner == my_execution_arn:
+        logger.info('Lock for {} Already Acquired'.format(group_name))
+        return True
+    if ddb_lock_helper.is_execution_running(current_owner):
+        logger.info('Lock for {0} belongs to {1}'.format(group_name, current_owner))
+        return False
+    logger.info('Found stale lock for {0}  belonging to {1}'.format(group_name, current_owner))
+    if ddb_lock_helper.put_item(table_name, group_name, my_execution_arn, ttl, current_owner):
+        logger.info('Lock for {} Acquired'.format(group_name))
+        return True
+    logger.warning('Unable to acquire lock for {}'.format(group_name))
+    return False
+
+
+def release_lock(table_name, group_name, my_execution_arn):
+    logger.info('Releasing lock for {}'.format(group_name))
+    logger.debug('My execution ARN is {}'.format(my_execution_arn))
+    ddb_lock_helper.delete_item(table_name, group_name, my_execution_arn)
