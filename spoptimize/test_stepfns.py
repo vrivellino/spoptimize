@@ -51,6 +51,7 @@ class TestInitMachineState(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_standard_asg(self):
         logger.debug('TestInitMachineState.test_standard_asg')
@@ -146,6 +147,7 @@ class TestAsgInstanceStatus(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_valid_asg(self):
         logger.debug('TestAsgInstanceStatus.test_valid_asg')
@@ -177,6 +179,7 @@ class TestRequestSpotInstance(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_request_spot(self):
         logger.debug('TestRequestSpotInstance.test_request_spot')
@@ -198,6 +201,7 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_get_spot_request_status(self):
         logger.debug('TestGetSpotRequestStatus.test_get_spot_request_status')
@@ -242,6 +246,7 @@ class TestAttachSpotInstance(unittest.TestCase):
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
 
     def test_no_capacity(self):
         logger.debug('TestAttachSpotInstance.test_no_capacity')
@@ -361,6 +366,80 @@ class TestTerminateEc2Instance(unittest.TestCase):
         })
         stepfns.terminate_ec2_instance(None)
         stepfns.ec2_helper.terminate_instance.assert_not_called()
+
+
+class TestAcquireLock(unittest.TestCase):
+
+    def setUp(self):
+        self.table_name = 'ddbtable'
+        self.group_name = 'group-name'
+        self.exec_arn = 'my:execution:arn'
+        stepfns.asg_helper = Mock()
+        stepfns.ec2_helper = Mock()
+        stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
+
+    def test_lock_acquired_no_existing(self):
+        logger.debug('TestAcquireLock.test_lock_acquired_no_existing')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': True
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.ddb_lock_helper.get_item.assert_not_called()
+        stepfns.ddb_lock_helper.is_execution_running.assert_not_called()
+        self.assertTrue(res)
+
+    def test_lock_already_acquired(self):
+        logger.debug('TestAcquireLock.test_lock_already_acquired')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': False,
+            'get_item.return_value': self.exec_arn
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.ddb_lock_helper.get_item.assert_called_once()
+        stepfns.ddb_lock_helper.is_execution_running.assert_not_called()
+        self.assertTrue(res)
+
+    def test_lock_not_acquired_existing_owner(self):
+        logger.debug('TestAcquireLock.test_lock_not_acquired_existing_owner')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': False,
+            'get_item.return_value': 'other:execution:arn',
+            'is_execution_running.return_value': True
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.ddb_lock_helper.get_item.assert_called_once()
+        stepfns.ddb_lock_helper.is_execution_running.assert_called_once()
+        self.assertFalse(res)
+
+    def test_lock_acquired_old_owner(self):
+        logger.debug('TestAcquireLock.test_lock_acquired_old_owner')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.side_effect': [False, True],
+            'get_item.return_value': 'other:execution:arn',
+            'is_execution_running.return_value': False
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called()
+        stepfns.ddb_lock_helper.get_item.assert_called_once()
+        stepfns.ddb_lock_helper.is_execution_running.assert_called_once()
+        self.assertTrue(res)
+
+    def test_lock_not_acquired_old_owner(self):
+        logger.debug('TestAcquireLock.test_lock_not_acquired_old_owner')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': False,
+            'get_item.return_value': 'other:execution:arn',
+            'is_execution_running.return_value': False
+        })
+        res = stepfns.acquire_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called()
+        stepfns.ddb_lock_helper.get_item.assert_called_once()
+        stepfns.ddb_lock_helper.is_execution_running.assert_called_once()
+        self.assertFalse(res)
 
 
 if __name__ == '__main__':

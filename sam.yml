@@ -32,6 +32,23 @@ Globals:
         SPOPTIMIZE_DEBUG: !Ref DebugLambdas
 
 Resources:
+  LockTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-autoscaling-group-locks"
+      AttributeDefinitions:
+        - AttributeName: group_name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: group_name
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
   StartStateMachineFn:
     Type: AWS::Serverless::Function
     Properties:
@@ -114,6 +131,8 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'acquire-lock'
+          SPOPTIMIZE_LOCK_TABLE: !Ref LockTable
+          SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
 
   ReleaseAutoScalingGroupLock:
     Type: AWS::Serverless::Function
@@ -125,6 +144,8 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'release-lock'
+          SPOPTIMIZE_LOCK_TABLE: !Ref LockTable
+          SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
 
   AttachSpot:
     Type: AWS::Serverless::Function
@@ -301,7 +322,7 @@ Resources:
                 "Retry": [{
                   "ErrorEquals": [ "GroupLocked" ],
                   "IntervalSeconds": 5,
-                  "MaxAttempts": 7,
+                  "MaxAttempts": 20,
                   "BackoffRate": 1.5
                 },{
                   "ErrorEquals": [ "States.ALL" ],

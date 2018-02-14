@@ -13,6 +13,10 @@ logger.setLevel(logging.INFO)
 sfn = boto3.client('stepfunctions')
 
 
+class GroupLocked(Exception):
+    pass
+
+
 def handler(event, context):
     logger.debug('EVENT: {}'.format(json.dumps(event, indent=2, default=util.json_dumps_converter)))
     action = environ.get('SPOPTIMIZE_ACTION').lower()
@@ -34,6 +38,7 @@ def handler(event, context):
                 if init_state['autoscaling_group']:
                     logger.debug('Starting execution of {0} with name {1}'.format(state_machine_arn, init_state['ondemand_instance_id']))
                     logger.debug('Input: {}'.format(json.dumps(init_state, indent=2, default=util.json_dumps_converter)))
+                    # NOTE: execution ARN is used for locks. if name changes, update lock acquisition & release
                     step_fn_resps.append(sfn.start_execution(
                         stateMachineArn=state_machine_arn,
                         name=init_state['ondemand_instance_id'],
@@ -67,11 +72,26 @@ def handler(event, context):
 
     # Acquire AutoScaling Group Lock
     elif action == 'acquire-lock':
-        retval = True
+        # Generate execution ARN from state machine ARN
+        my_arn = environ['SPOPTIMIZE_SFN_ARN'].split(':')
+        my_arn[5] = 'execution'
+        my_arn.append(event['ondemand_instance_id'])
+        if stepfns.acquire_lock(environ['SPOPTIMIZE_LOCK_TABLE'],
+                                event['autoscaling_group']['AutoScalingGroupName'],
+                                ':'.join(my_arn)):
+            retval = True
+        else:
+            raise GroupLocked('Unable to acquire lock')
 
     # Release AutoScaling Group Lock
     elif action == 'release-lock':
-        retval = True
+        # Generate execution ARN from state machine ARN
+        my_arn = environ['SPOPTIMIZE_SFN_ARN'].split(':')
+        my_arn[5] = 'execution'
+        my_arn.append(event['ondemand_instance_id'])
+        retval = stepfns.release_lock(environ['SPOPTIMIZE_LOCK_TABLE'],
+                                      event['autoscaling_group']['AutoScalingGroupName'],
+                                      ':'.join(my_arn))
 
     # Attach Spot Instance
     elif action == 'attach-spot':
