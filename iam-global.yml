@@ -68,13 +68,18 @@ Resources:
             - ec2:DescribeInstances
             - ec2:DescribeTags
             - ec2:RequestSpotInstances
+            - ec2:TerminateInstances
           Resource: "*"
-        - Sid: StepFns
+        - Sid: StepFnStart
+          Effect: Allow
+          Action:
+            - states:StartExecution
+          Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StackBasename}-*"
+        - Sid: StepFnDescribeExec
           Effect: Allow
           Action:
             - states:DescribeExecution
-            - states:StartExecution
-          Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StackBasename}-*"
+          Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${StackBasename}-*"
         - Sid: DynamoDbLockTable
           Effect: Allow
           Action:
