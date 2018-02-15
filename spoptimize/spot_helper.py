@@ -17,6 +17,14 @@ here = os.path.dirname(os.path.realpath(__file__))
 mocks_dir = os.path.join(here, 'resources', 'mock_data')
 
 ec2 = boto3.client('ec2')
+iam = boto3.client('iam')
+
+
+def get_instance_profile_arn(instance_profile):
+    if instance_profile[:12] == 'arn:aws:iam:':
+        return instance_profile
+    logger.info('Fetching arn for instance-profile {}'.format(instance_profile))
+    return iam.get_instance_profile(InstanceProfileName=instance_profile)['InstanceProfile']['Arn']
 
 
 def gen_launch_specification(launch_config, avail_zone, subnet_id):
@@ -37,7 +45,7 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
     # some translation needed ...
     if launch_config.get('IamInstanceProfile'):
         spot_launch_specification['IamInstanceProfile'] = {
-            'Arn': launch_config['IamInstanceProfile']
+            'Arn': get_instance_profile_arn(launch_config['IamInstanceProfile'])
         }
     if launch_config.get('SecurityGroups'):
         # Assume VPC security group ids
