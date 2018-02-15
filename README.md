@@ -116,7 +116,7 @@ Set via CloudFormation:
 ```yaml
       Tags:
         - Key: Name
-          Value: !Ref ${AWS::StackName
+          Value: !Ref AWS::StackName
           PropagateAtLaunch: true
         - Key: spoptimize:init_sleep_interval
           Value: 45
