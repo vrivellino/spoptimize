@@ -1,12 +1,30 @@
 #!/usr/bin/env bash
 
 basedir=$(dirname "$0")/..
+if [[ -f $basedir/.env ]]; then
+    set -o allexport
+    source "$basedir/.env"
+    set +o allexport
+fi
+
 stack_basename=${STACK_BASENAME:-spoptimize}
 aws_account_id=$(aws sts get-caller-identity --query Account --output=text)
 s3_bucket=${S3_BUCKET:-spoptimize-artifacts-$aws_account_id}
 s3_prefix=${S3_PREFIX:-spoptimize}
 sns_topic_name=${ASG_SNS_TOPIC_NAME:-spoptimize-init}
 lambda_debug_log=${SPOPTIMIZE_LAMBDA_DEBUG_LOG:-false}
+cfn_iam_role_arn_arg=''
+cfn_sam_role_arn_arg=''
+cfn_notification_arns_arg=''
+if [[ -n $CFN_IAM_SVC_ROLE_ARN ]]; then
+    cfn_iam_role_arn_arg="--role-arn $CFN_IAM_SVC_ROLE_ARN"
+fi
+if [[ -n $CFN_SAM_SVC_ROLE_ARN ]]; then
+    cfn_sam_role_arn_arg="--role-arn $CFN_SAM_SVC_ROLE_ARN"
+fi
+if [[ -n $CFN_NOTIFICATION_ARNS ]]; then
+    cfn_notification_arns_arg="--notification-arns $CFN_NOTIFICATION_ARNS"
+fi
 
 if [[ -z "$1" ]]; then
     do_iam=True
@@ -38,11 +56,11 @@ done
 if [[ -n $do_iam ]]; then
     # TODO primary/global region?
     echo 'Deploying IAM stack ...'
-    aws cloudformation deploy \
-        --parameter-overrides StackBasename=$stack_basename \
+    aws cloudformation deploy $cfn_iam_role_arn_arg $cfn_notification_arns_arg \
+        --stack-name "$stack_basename-iam-global" \
         --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-        --template-file "$basedir/iam-global.yml" \
-        --stack-name "$stack_basename-iam-global"
+        --parameter-overrides StackBasename=$stack_basename \
+        --template-file "$basedir/iam-global.yml"
     rc=$?
     if [[ $rc != 0 ]] && [[ $rc != 255 ]]; then
         exit $rc
@@ -68,8 +86,8 @@ if [[ -n $do_sam ]]; then
         --s3-prefix "$s3_prefix"
     echo
     echo 'Deploying Spoptimize ...'
-    aws cloudformation deploy \
+    aws cloudformation deploy $cfn_sam_role_arn_arg $cfn_notification_arns_arg \
+        --stack-name "$stack_basename" \
         --parameter-overrides StackBasename=$stack_basename DebugLambdas=$lambda_debug_log \
-        --template-file "$basedir/target/sam_output.yml" \
-        --stack-name "$stack_basename" || exit $?
+        --template-file "$basedir/target/sam_output.yml" || exit $?
 fi
