@@ -57,10 +57,9 @@ def init_machine_state(sns_message):
         logger.warning('Autoscaling Group {} does not exist'.format(group_name))
         return ({}, 'AutoScaling Group does not exist')
     spoptimize_tags = get_spoptimize_tags(asg.get('Tags', []))
-    # TODO s/MaxSize/DesiredCapacity/
     init_sleep_interval = spoptimize_tags.get(
         'init_sleep_interval',
-        asg['HealthCheckGracePeriod'] * (2 + asg['MaxSize'] + random())
+        asg['HealthCheckGracePeriod'] * (2 + asg['DesiredCapacity'] + random())
     )
     spot_req_sleep_interval = spoptimize_tags.get('spot_req_sleep_interval', 30)
     spot_attach_sleep_interval = spoptimize_tags.get('spot_attach_sleep_interval', asg['HealthCheckGracePeriod'] * 2)

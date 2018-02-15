@@ -62,7 +62,7 @@ class TestInitMachineState(unittest.TestCase):
         expected_state = state_machine_init.copy()
         expected_state['autoscaling_group'] = self.asg_dict.copy()
         expected_state['init_sleep_interval'] = int(
-            self.asg_dict['HealthCheckGracePeriod'] * (2 + self.asg_dict['MaxSize'] + random.random())
+            self.asg_dict['HealthCheckGracePeriod'] * (2 + self.asg_dict['DesiredCapacity'] + random.random())
         )
 
         expected_state['spot_attach_sleep_interval'] = int(self.asg_dict['HealthCheckGracePeriod'] * 2)
@@ -70,7 +70,7 @@ class TestInitMachineState(unittest.TestCase):
         (state_machine_dict, msg) = stepfns.init_machine_state(launch_notification)
         self.assertDictEqual(state_machine_dict, expected_state)
         self.assertGreater(state_machine_dict['init_sleep_interval'],
-                           self.asg_dict['HealthCheckGracePeriod'] * (2 + self.asg_dict['MaxSize']))
+                           self.asg_dict['HealthCheckGracePeriod'] * (2 + self.asg_dict['DesiredCapacity']))
         self.assertIsNone(msg)
 
     def test_unknown_notification(self):
