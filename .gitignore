@@ -99,3 +99,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# Coveralls config is generated on the fly
+.coveralls.yml

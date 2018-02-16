@@ -1,10 +1,17 @@
 version: 0.2
 
+env:
+  variables:
+    COVERALLS_SERVICE_NAME: codebuidl
+  parameter-store:
+    COVERALLS_REPO_TOKEN: /CodeBuild/spoptimize/coveralls_token
 phases:
   install:
     commands:
       - pip install --upgrade -r requirements-dev.txt
   build:
     commands:
-      - python -m unittest discover -s spoptimize -v
+      - coverage run --source=. -m unittest discover -s spoptimize
+      - coverage report
       - python scripts/validate-templates.py
+      - bash scripts/coveralls-from-codebuild.sh
