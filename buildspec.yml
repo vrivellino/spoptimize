@@ -7,3 +7,4 @@ phases:
   build:
     commands:
       - python -m unittest discover -s spoptimize -v
+      - python scripts/validate-templates.py
