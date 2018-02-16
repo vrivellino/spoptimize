@@ -1,0 +1,9 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - pip install --upgrade -r requirements-dev.txt
+  build:
+    commands:
+      - python -m unittest discover -s spoptimize -v
