@@ -9,9 +9,12 @@ phases:
   install:
     commands:
       - pip install --upgrade -r requirements-dev.txt
+  pre_build:
+    commands:
+      - . scripts/codebuild-env.sh
   build:
     commands:
       - coverage run --source=. -m unittest discover -s spoptimize
       - coverage report
       - python scripts/validate-templates.py
-      - bash scripts/coveralls-from-codebuild.sh
+      - coveralls
