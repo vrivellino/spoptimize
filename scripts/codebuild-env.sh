@@ -1,4 +1,5 @@
 # snagged from https://github.com/thii/aws-codebuild-extras/blob/master/install
+set -x
 export CI=true
 export CODEBUILD=true
 
@@ -17,3 +18,4 @@ export GITHUB_PULL_REQUEST=false
 if [ "$(echo "$GIT_BRANCH" | cut -f 1 -d -)" = 'pr' ]; then
     export GITHUB_PULL_REQUEST=$(echo "$GIT_BRANCH" | sed 's/^pr-//')
 fi
+set +x
