@@ -1,0 +1,30 @@
+{
+    "InstanceProfile": {
+        "InstanceProfileId": "AIPAAAAAAAAAAAAAAAAAA",
+        "Roles": [
+            {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": "sts:AssumeRole",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "ec2.amazonaws.com"
+                            }
+                        }
+                    ]
+                },
+                "RoleId": "AROBBBBBBBBBBBBBBBBBB",
+                "CreateDate": "2018-01-29T20:55:10Z",
+                "RoleName": "test-role",
+                "Path": "/",
+                "Arn": "arn:aws:iam::123456789012:role/test-role"
+            }
+        ],
+        "CreateDate": "2018-01-29T20:55:10Z",
+        "InstanceProfileName": "test",
+        "Path": "/",
+        "Arn": "arn:aws:iam::123456789012:instance-profile/test"
+    }
+}
