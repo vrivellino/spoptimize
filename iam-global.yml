@@ -90,8 +90,20 @@ Resources:
         - Sid: PassEc2IamRole
           Effect: Allow
           Action: iam:PassRole
-          # TODO
           Resource: "*"
+          Condition:
+            StringEquals:
+              iam:PassedToService:
+                - ec2.amazonaws.com
+                - ec2.amazonaws.com.cn
+        - Sid: GetIamInstanceProfiles
+          Effect: Allow
+          Action: iam:GetInstanceProfile
+          Resource: "*"
+        - Sid: CreateSpotServiceRole
+          Effect: Allow
+          Action: iam:CreateServiceLinkedRole
+          Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot"
 
   LambdaExecRole:
     Type: AWS::IAM::Role

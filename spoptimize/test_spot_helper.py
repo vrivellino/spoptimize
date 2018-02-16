@@ -21,6 +21,12 @@ for file in os.listdir(mocks_dir):
     if file.endswith('.json'):
         with open(os.path.join(mocks_dir, file)) as j:
             mock_attrs['{}.return_value'.format(file.split('.')[0])] = json.loads(j.read())
+iam_mocks_dir = os.path.join(here, 'resources', 'mock_data', 'iam')
+iam_mock_attrs = {}
+for file in os.listdir(iam_mocks_dir):
+    if file.endswith('.json'):
+        with open(os.path.join(iam_mocks_dir, file)) as j:
+            iam_mock_attrs['{}.return_value'.format(file.split('.')[0])] = json.loads(j.read())
 
 sample_launch_config = {
     'LaunchConfigurationName': 'test-launch-config',
@@ -57,14 +63,54 @@ expected_launch_spec = {
 }
 
 
+class TestGetInstanceProfileArn(unittest.TestCase):
+
+    def setUp(self):
+        self.instance_profile_arn = 'arn:aws:iam::123456789012:instance-profile/base-ec2'
+        self.iam_mock_attrs = copy.deepcopy(iam_mock_attrs)
+        spot_helper.ec2 = Mock()
+        spot_helper.iam = Mock()
+
+    def test_pass_arn_return_arn(self):
+        logger.debug('TestGetInstanceProfileArn.test_pass_arn_return_arn')
+        res = spot_helper.get_instance_profile_arn(self.instance_profile_arn)
+        spot_helper.iam.get_instance_profile.assert_not_called()
+        self.assertEqual(res, self.instance_profile_arn)
+
+    def test_pass_name_return_arn(self):
+        logger.debug('TestGetInstanceProfileArn.test_pass_name_return_arn')
+        instance_profile_name = self.iam_mock_attrs['get_instance_profile.return_value']['InstanceProfile']['InstanceProfileName']
+        expected_arn = self.iam_mock_attrs['get_instance_profile.return_value']['InstanceProfile']['Arn']
+        spot_helper.iam = Mock(**self.iam_mock_attrs)
+        res = spot_helper.get_instance_profile_arn(instance_profile_name)
+        spot_helper.iam.get_instance_profile.called_onced_with(InstanceProfileName=instance_profile_name)
+        self.assertEqual(res, expected_arn)
+
+    def test_pass_name_raise_client_error(self):
+        logger.debug('TestGetInstanceProfileArn.test_pass_name_return_arn')
+        self.iam_mock_attrs['get_instance_profile.side_effect'] = ClientError({
+            'Error': {
+                'Code': 'NoSuchEntity',
+                'Message': 'Instance Profile unknown cannot be found.'
+            }
+        }, 'GetInstanceProfile.NotFound')
+        spot_helper.iam = Mock(**self.iam_mock_attrs)
+        # We're letting an unknown instance-profile exception bubble up
+        with self.assertRaises(ClientError):
+            spot_helper.get_instance_profile_arn('test')
+
+
 class TestGenLaunchSpecification(unittest.TestCase):
 
     def setUp(self):
-        self.maxDiff = 1024
+        # self.maxDiff = None
         self.launch_config = copy.deepcopy(sample_launch_config)
         self.subnet_id = 'subnet-11111111'
         self.az = 'us-east-1d'
         self.expected_launch_spec = copy.deepcopy(expected_launch_spec)
+        self.iam_mock_attrs = copy.deepcopy(iam_mock_attrs)
+        spot_helper.ec2 = Mock()
+        spot_helper.iam = Mock()
 
     def test_get_launch_specification(self):
         logger.debug('TestSpotHelper.get_launch_specification')
@@ -118,6 +164,18 @@ class TestGenLaunchSpecification(unittest.TestCase):
         # logger.debug('Expected launch spec: {}'.format(json.dumps(self.expected_launch_spec, indent=2, default=util.json_dumps_converter)))
         self.assertDictEqual(launch_spec, self.expected_launch_spec)
 
+    def test_get_launch_specification_instance_profile_by_name(self):
+        logger.debug('TestSpotHelper.test_get_launch_specification_instance_profile_by_name')
+        instance_profile_name = self.iam_mock_attrs['get_instance_profile.return_value']['InstanceProfile']['InstanceProfileName']
+        expected_arn = self.iam_mock_attrs['get_instance_profile.return_value']['InstanceProfile']['Arn']
+        spot_helper.iam = Mock(**self.iam_mock_attrs)
+        self.launch_config['IamInstanceProfile'] = instance_profile_name
+        self.expected_launch_spec['IamInstanceProfile']['Arn'] = expected_arn
+        launch_spec = spot_helper.gen_launch_specification(self.launch_config, self.az, self.subnet_id)
+        # logger.debug('Generated launch spec: {}'.format(json.dumps(launch_spec, indent=2, default=util.json_dumps_converter)))
+        # logger.debug('Expected launch spec: {}'.format(json.dumps(self.expected_launch_spec, indent=2, default=util.json_dumps_converter)))
+        self.assertDictEqual(launch_spec, self.expected_launch_spec)
+
 
 class TestRequestSpotInstance(unittest.TestCase):
 
@@ -128,6 +186,8 @@ class TestRequestSpotInstance(unittest.TestCase):
         self.subnet_id = 'subnet-11111111'
         self.client_token = 'testing1234'
         self.mock_attrs = copy.deepcopy(mock_attrs)
+        spot_helper.ec2 = Mock()
+        spot_helper.iam = Mock()
 
     def test_request_spot_instance(self):
         logger.debug('TestRequestSpotInstance.test_request_spot_instance')
@@ -148,6 +208,8 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         self.mock_attrs = copy.deepcopy(mock_attrs)
         self.spot_req_id = mock_attrs['describe_spot_instance_requests.return_value']['SpotInstanceRequests'][0]['SpotInstanceRequestId']
         self.spot_instance_id = mock_attrs['describe_spot_instance_requests.return_value']['SpotInstanceRequests'][0]['InstanceId']
+        spot_helper.ec2 = Mock()
+        spot_helper.iam = Mock()
 
     def test_get_spot_request_status_active(self):
         logger.debug('TestGetSpotRequest_status.test_get_spot_request_status_active')
