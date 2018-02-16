@@ -21,7 +21,8 @@ if [ -e requirements.txt ]; then
     #pip install -t vendored -r requirements.txt
 fi
 
-test_cmd='python -m unittest discover -s spoptimize -v' "$@"
+test_cmd='coverage run --source=. -m unittest discover -s spoptimize -v' "$@"
 echo "Executing: $test_cmd" "$@"
 $test_cmd "$@"
 echo
+coverage report
