@@ -113,6 +113,42 @@ class TestIsInstanceRunning(unittest.TestCase):
         self.assertIsNone(res)
 
 
+class TestIsSpoptimizeInstance(unittest.TestCase):
+
+    def setUp(self):
+        ec2_helper.ec2 = Mock()
+        self.mock_attrs = copy.deepcopy(mock_attrs)
+
+    def test_not_spoptimize_instance(self):
+        logger.debug('TestIsSpoptimizeInstance.test_not_spoptimize_instance')
+        ec2_helper.ec2 = Mock(**self.mock_attrs)
+        res = ec2_helper.is_spoptimize_instance('i-abcd123')
+        ec2_helper.ec2.describe_instances.assert_called_once_with(InstanceIds=['i-abcd123'])
+        self.assertFalse(res)
+
+    def test_spoptimize_instance(self):
+        logger.debug('TestIsSpoptimizeInstance.test_spoptimize_instance')
+        self.mock_attrs['describe_instances.return_value']['Reservations'][0]['Instances'][0]['State']['Name'] = 'running'
+        self.mock_attrs['describe_instances.return_value']['Reservations'][0]['Instances'][0]['Tags'].append(
+            {'Key': 'spoptimize:test_tag', 'Value': 'test-value'}
+        )
+        ec2_helper.ec2 = Mock(**self.mock_attrs)
+        res = ec2_helper.is_spoptimize_instance('i-abcd123')
+        ec2_helper.ec2.describe_instances.assert_called_once_with(InstanceIds=['i-abcd123'])
+        self.assertTrue(res)
+
+    def test_unknown_instance(self):
+        logger.debug('TestIsSpoptimizeInstance.test_unknown_instance')
+        ec2_helper.ec2 = Mock(**{'describe_instances.side_effect': ClientError({
+            'Error': {
+                'Code': 'InvalidInstanceID.NotFound',
+                'Message': "The instance ID 'i-abcd123' does not exist"
+            }
+        }, 'DescribeInstances')})
+        res = ec2_helper.is_spoptimize_instance('i-abcd123')
+        self.assertIsNone(res)
+
+
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
     setup_stream_handler()
