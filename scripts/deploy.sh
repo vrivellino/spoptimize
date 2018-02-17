@@ -12,6 +12,7 @@ aws_account_id=$(aws sts get-caller-identity --query Account --output=text)
 s3_bucket=${S3_BUCKET:-spoptimize-artifacts-$aws_account_id}
 s3_prefix=${S3_PREFIX:-spoptimize}
 sns_topic_name=${ASG_SNS_TOPIC_NAME:-spoptimize-init}
+sns_alarm_topic_name=$SNS_ALARM_TOPIC_NAME
 lambda_debug_log=${SPOPTIMIZE_LAMBDA_DEBUG_LOG:-false}
 cfn_iam_role_arn_arg=''
 cfn_sam_role_arn_arg=''
@@ -86,8 +87,12 @@ if [[ -n $do_sam ]]; then
         --s3-prefix "$s3_prefix"
     echo
     echo 'Deploying Spoptimize ...'
+    sns_params="SnsTopicName=$sns_topic_name"
+    if [[ -n $sns_alarm_topic_name ]]; then
+        sns_params="$sns_params AlarmTopicName=$sns_alarm_topic_name"
+    fi
     aws cloudformation deploy $cfn_sam_role_arn_arg $cfn_notification_arns_arg \
         --stack-name "$stack_basename" \
-        --parameter-overrides StackBasename=$stack_basename DebugLambdas=$lambda_debug_log \
+        --parameter-overrides StackBasename=$stack_basename DebugLambdas=$lambda_debug_log $sns_params \
         --template-file "$basedir/target/sam_output.yml" || exit $?
 fi
