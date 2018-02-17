@@ -201,6 +201,19 @@ class TestRequestSpotInstance(unittest.TestCase):
         )
         self.assertDictEqual(spot_req_dict, expected_dict)
 
+    def test_max_spot_instance_count(self):
+        logger.debug('TestRequestSpotInstance.test_max_spot_instance_count')
+        self.mock_attrs['request_spot_instances.side_effect'] = ClientError({
+            'Error': {
+                'Code': 'MaxSpotInstanceCountExceeded',
+                'Message': 'Max spot instance count exceeded'
+            }
+        }, 'RequestSpotInstances')
+        spot_helper.ec2 = Mock(**self.mock_attrs)
+        expected_dict = {'SpoptimizeError': 'MaxSpotInstanceCountExceeded'}
+        spot_req_dict = spot_helper.request_spot_instance(self.launch_config, self.az, self.subnet_id, self.client_token)
+        self.assertDictEqual(spot_req_dict, expected_dict)
+
 
 class TestGetSpotRequestStatus(unittest.TestCase):
 

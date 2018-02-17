@@ -61,8 +61,14 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
 def request_spot_instance(launch_config, avail_zone, subnet_id, client_token):
     logger.info('Requesting spot instance in {0}/{1}'.format(avail_zone, subnet_id))
     launch_spec = gen_launch_specification(launch_config, avail_zone, subnet_id)
-    resp = ec2.request_spot_instances(InstanceCount=1, LaunchSpecification=launch_spec,
-                                      Type='one-time', ClientToken=client_token)
+    try:
+        resp = ec2.request_spot_instances(InstanceCount=1, LaunchSpecification=launch_spec,
+                                          Type='one-time', ClientToken=client_token)
+    except ClientError as c:
+        if c.response['Error']['Code'] == 'MaxSpotInstanceCountExceeded':
+            logger.warning(c.response['Error']['Message'])
+            return {'SpoptimizeError': 'MaxSpotInstanceCountExceeded'}
+        raise
     logger.debug('Spot request response: {}'.format(json.dumps(resp, indent=2, default=util.json_dumps_converter)))
     return resp['SpotInstanceRequests'][0]
 
