@@ -65,7 +65,11 @@ def handler(event, context):
 
     # Check Spot Request
     elif action == 'check-spot':
-        retval = stepfns.get_spot_request_status(event['spot_request']['SpotInstanceRequestId'])
+        if event['spot_request'].get('SpoptimizeError'):
+            logger.info('Spot request error'.format(event['spot_request']['SpoptimizeError']))
+            retval = 'Failure'
+        else:
+            retval = stepfns.get_spot_request_status(event['spot_request']['SpotInstanceRequestId'])
 
     # AutoScaling Group Disappeared
     elif action == 'term-spot-instance':
