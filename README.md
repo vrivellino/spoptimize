@@ -32,6 +32,7 @@ Here's a breakdown the privileges required for deployment. Deployment requires t
     - CloudFormation stacks
     - IAM Managed Policy 
     - IAM Roles
+    - CloudWatch Alarms
     - DynamoDb tables whose table names begin with `spoptimize`
     - Lambda functions whose function names begin with `spoptimize`
     - Step Functions whose names begin with `spoptimize`

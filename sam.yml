@@ -20,6 +20,13 @@ Parameters:
     Description: Maximum number of iterations
     Type: Number
     Default: 48
+  AlarmTopicName:
+    Description: Name of SNS topic for CloudWatch Alarms
+    Type: String
+    Default: ""
+
+Conditions:
+  NoAlarmNotifications: !Equals [ !Ref AlarmTopicName, "" ]
 
 Globals:
   Function:
@@ -463,6 +470,52 @@ Resources:
               }
             }
           }
+
+  SpotRequestorFailedAlrm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-failed-executions"
+      AlarmDescription: "Failed executions of Spoptimize spot-requestor step functions"
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref SpotRequestor
+      Period: 300
+      EvaluationPeriods: 1
+      Statistic: Sum
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 0
+      TreatMissingData: notBreaching
+      ActionsEnabled: !If [ NoAlarmNotifications, false, true ]
+      AlarmActions:
+        Fn::If:
+          - NoAlarmNotifications
+          - !Ref AWS::NoValue
+          - [ !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${AlarmTopicName}" ]
+
+  SpotRequestorTimedOutAlrm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-timed-out-executions"
+      AlarmDescription: "Timed Out executions of Spoptimize spot-requestor step functions"
+      Namespace: AWS/States
+      MetricName: ExecutionsTimedOut
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref SpotRequestor
+      Period: 300
+      EvaluationPeriods: 1
+      Statistic: Sum
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 0
+      TreatMissingData: notBreaching
+      ActionsEnabled: !If [ NoAlarmNotifications, false, true ]
+      AlarmActions:
+        Fn::If:
+          - NoAlarmNotifications
+          - !Ref AWS::NoValue
+          - [ !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${AlarmTopicName}" ]
 
 Outputs:
   SpotRequestorArn:
