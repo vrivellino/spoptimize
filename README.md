@@ -55,7 +55,7 @@ Deploy just the IAM stack:
 
 Deploy just the Step Functions and Lambdas:
 
-    $ ./script/deploy.sh sam
+    $ ./script/deploy.sh cfn
 
 ### AutoScaling Configuration
 
