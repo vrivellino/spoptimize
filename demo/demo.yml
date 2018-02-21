@@ -1,0 +1,218 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Spoptimize Demo
+
+Parameters:
+
+  InstanceType: 
+    Description: EC2 Instance Type
+    Type: String
+    Default: t2.micro
+  Ec2Key:
+    Description: Name of EC2 Key Pair
+    Type: AWS::EC2::KeyPair::KeyName
+  VPC:
+    Description: VPC id
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Description: Subnet Ids
+    Type: "List<AWS::EC2::Subnet::Id>"
+  WhitelistCidr:
+    Description: Allow ports 80 and 22 from this CIDR
+    Type: String
+    Default: 0.0.0.0/0
+
+Mappings:
+  Region2Ami:
+    ap-northeast-1:
+      amzn2: ami-c2680fa4
+    ap-northeast-2:
+      amzn2: ami-3e04a450
+    ap-southeast-1:
+      amzn2: ami-4f89f533
+    ap-southeast-2:
+      amzn2: ami-38708c5a
+    ap-south-1:
+      amzn2: ami-3b2f7954
+    ca-central-1:
+      amzn2: ami-7549cc11
+    eu-central-1:
+      amzn2: ami-1b2bb774
+    eu-west-1:
+      amzn2: ami-db1688a2
+    eu-west-2:
+      amzn2: ami-6d263d09
+    eu-west-3:
+      amzn2: ami-5ce55321
+    sa-east-1:
+      amzn2: ami-f1337e9d
+    us-east-1:
+      amzn2: ami-428aa838
+    us-east-2:
+      amzn2: ami-710e2414
+    us-west-1:
+      amzn2: ami-4a787a2a
+    us-west-2:
+      amzn2: ami-7f43f307
+
+Resources:
+
+  ElbSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${AWS::StackName}-elb"
+      GroupDescription: !Sub "${AWS::StackName} elb"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref WhitelistCidr
+
+  InstanceSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${AWS::StackName}-instance"
+      GroupDescription: !Sub "${AWS::StackName} instances"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref WhitelistCidr
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !GetAtt ElbSecGrp.GroupId
+
+  ## These would be used for a NLB
+  #EIP1:
+  #  Type: AWS::EC2::EIP
+  #  Properties:
+  #    Domain: VPC
+  #EIP2:
+  #  Type: AWS::EC2::EIP
+  #  Properties:
+  #    Domain: VPC
+
+  Elb:
+    #DependsOn:
+    #  - EIP1
+    #  - EIP2
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${AWS::StackName}-elb"
+      Type: application
+      Scheme: internet-facing
+      SecurityGroups:
+        - !GetAtt ElbSecGrp.GroupId
+      IpAddressType: ipv4
+      #SubnetMappings:
+      #  - SubnetId: !Select [ 0 !Ref SubnetIds ]
+      #    AllocationId: !GetAtt EIP1.AllocationId
+      #  - SubnetId: !Select [ 1 !Ref SubnetIds ]
+      #    AllocationId: !GetAtt EIP2.AllocationId
+      Subnets: 
+        - !Select [ 0, !Ref SubnetIds ]
+        - !Select [ 1, !Ref SubnetIds ]
+
+  ElbTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${AWS::StackName}-elb-tg"
+      HealthCheckIntervalSeconds: 20
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: 200
+      Port: 80
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+      VpcId: !Ref VPC
+
+  ElbListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref ElbTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref Elb
+      Port: 80
+      Protocol: HTTP
+
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [ Region2Ami, !Ref "AWS::Region", amzn2 ]
+      KeyName: !Ref Ec2Key
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/base-ec2"
+      SecurityGroups:
+        - !GetAtt InstanceSecGrp.GroupId
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            set -x
+            setup_instance() {
+              amazon-linux-extras install nginx1.12 || return $?
+              ec2-metadata -i > /usr/share/nginx/html/instance-id.txt || return $?
+              systemctl start nginx.service || return $?
+            }
+            ((
+              setup_instance
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource LaunchGroup --region ${AWS::Region}
+            ) & )
+
+  LaunchGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT5M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT5M
+        WaitOnResourceSignals: true
+    Properties:
+      LaunchConfigurationName: !Ref LaunchConfig
+      DesiredCapacity: 1
+      MinSize: 0
+      MaxSize: 12
+      VPCZoneIdentifier: 
+        - !Select [ 0, !Ref SubnetIds ]
+        - !Select [ 1, !Ref SubnetIds ]
+      MetricsCollection: 
+        - Granularity: 1Minute
+      HealthCheckGracePeriod: 120
+      Cooldown: 180
+      HealthCheckType: ELB
+      TargetGroupARNs:
+        - !Ref ElbTargetGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ondemand"
+          PropagateAtLaunch: true
+        - Key: spoptimize:init_sleep_interval
+          Value: 45
+          PropagateAtLaunch: false
+        - Key: spoptimize:spot_req_sleep_interval
+          Value: 10
+          PropagateAtLaunch: false
+        - Key: spoptimize:spot_attach_sleep_interval
+          Value: 125
+          PropagateAtLaunch: false
+        - Key: spoptimize:spot_failure_sleep_interval
+          Value: 900
+          PropagateAtLaunch: false
+      NotificationConfigurations:
+        - TopicARN: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:spoptimize-init"
+          NotificationTypes:
+            - autoscaling:EC2_INSTANCE_LAUNCH
