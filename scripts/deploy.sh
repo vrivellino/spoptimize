@@ -17,6 +17,8 @@ lambda_debug_log=${SPOPTIMIZE_LAMBDA_DEBUG_LOG:-false}
 cfn_iam_role_arn_arg=''
 cfn_sam_role_arn_arg=''
 cfn_notification_arns_arg=''
+cfn_iam_tags_arg=''
+cfn_sam_tags_arg=''
 if [[ -n $CFN_IAM_SVC_ROLE_ARN ]]; then
     cfn_iam_role_arn_arg="--role-arn $CFN_IAM_SVC_ROLE_ARN"
 fi
@@ -25,6 +27,12 @@ if [[ -n $CFN_SAM_SVC_ROLE_ARN ]]; then
 fi
 if [[ -n $CFN_NOTIFICATION_ARNS ]]; then
     cfn_notification_arns_arg="--notification-arns $CFN_NOTIFICATION_ARNS"
+fi
+if [[ -n $CFN_IAM_TAGS ]]; then
+    cfn_iam_tags_arg="--tags $CFN_IAM_TAGS"
+fi
+if [[ -n $CFN_SAM_TAGS ]]; then
+    cfn_sam_tags_arg="--tags $CFN_SAM_TAGS"
 fi
 
 if [[ -z "$1" ]]; then
@@ -71,7 +79,7 @@ if [[ -n $do_iam ]]; then
         --stack-name "$stack_basename-iam-global" \
         --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
         --parameter-overrides StackBasename=$stack_basename \
-        --template-file "$basedir/iam-global.yml"
+        --template-file "$basedir/iam-global.yml" $cfn_iam_tags_arg
     rc=$?
     if [[ $rc != 0 ]] && [[ $rc != 255 ]]; then
         exit $rc
@@ -107,5 +115,5 @@ if [[ -n $do_sam ]]; then
     aws cloudformation deploy $cfn_sam_role_arn_arg $cfn_notification_arns_arg \
         --stack-name "$stack_basename" \
         --parameter-overrides StackBasename=$stack_basename DebugLambdas=$lambda_debug_log $sns_params \
-        --template-file "$basedir/target/sam_output.yml" || exit $?
+        --template-file "$basedir/target/sam_output.yml" $cfn_sam_tags_arg || exit $?
 fi
