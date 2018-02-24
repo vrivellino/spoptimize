@@ -1,3 +1,5 @@
+---
+
 AWSTemplateFormatVersion: 2010-09-09
 Description: Step Functions for Spoptimize
 Transform: AWS::Serverless-2016-10-31
@@ -26,7 +28,7 @@ Parameters:
     Default: ""
 
 Conditions:
-  NoAlarmNotifications: !Equals [ !Ref AlarmTopicName, "" ]
+  NoAlarmNotifications: !Equals [!Ref AlarmTopicName, ""]
 
 Globals:
   Function:
@@ -487,12 +489,12 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Threshold: 0
       TreatMissingData: notBreaching
-      ActionsEnabled: !If [ NoAlarmNotifications, false, true ]
+      ActionsEnabled: !If [NoAlarmNotifications, false, true]
       AlarmActions:
         Fn::If:
           - NoAlarmNotifications
           - !Ref AWS::NoValue
-          - [ !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${AlarmTopicName}" ]
+          - [!Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${AlarmTopicName}"]
 
   SpotRequestorTimedOutAlrm:
     Type: AWS::CloudWatch::Alarm
@@ -510,12 +512,12 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Threshold: 0
       TreatMissingData: notBreaching
-      ActionsEnabled: !If [ NoAlarmNotifications, false, true ]
+      ActionsEnabled: !If [NoAlarmNotifications, false, true]
       AlarmActions:
         Fn::If:
           - NoAlarmNotifications
           - !Ref AWS::NoValue
-          - [ !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${AlarmTopicName}" ]
+          - [!Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${AlarmTopicName}"]
 
 Outputs:
   SpotRequestorArn:
