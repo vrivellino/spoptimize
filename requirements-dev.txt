@@ -3,3 +3,4 @@ boto3
 coveralls
 coverage
 mock
+yamllint

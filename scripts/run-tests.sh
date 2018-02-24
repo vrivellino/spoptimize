@@ -21,6 +21,15 @@ if [ -e requirements.txt ]; then
     #pip install -t vendored -r requirements.txt
 fi
 
+yamllint_cmd='yamllint *.yml demo/*.yml'
+echo "Checking yaml files via: $yamllint_cmd"
+$yamllint_cmd
+echo
+
+echo
+python scripts/validate-templates.py
+echo
+
 test_cmd='coverage run --source=. -m unittest discover -s spoptimize -v' "$@"
 echo "Executing: $test_cmd" "$@"
 $test_cmd "$@"
