@@ -1,5 +1,4 @@
 import boto3
-import datetime
 import json
 import logging
 import os
