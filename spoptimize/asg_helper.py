@@ -4,6 +4,8 @@ import re
 
 from botocore.exceptions import ClientError
 
+import stepfn_strings as strs
+
 logger = logging.getLogger()
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
@@ -54,33 +56,33 @@ def get_instance_status(instance_id):
     # instance is terminated or detatched if empty
     if not len(resp['AutoScalingInstances']):
         logger.info('{0} terminated or not managed by autoscaling'.format(instance_id))
-        return 'Terminated'
+        return strs.asg_instance_terminated
     instance_detail = resp['AutoScalingInstances'][0]
     logger.debug('{0} details: {1}'.format(instance_id, instance_detail))
     if re.match(r'^terminat', instance_detail.get('LifecycleState', 'unknown').lower()):
         logger.info('{0} is being terminated by autoscaling'.format(instance_id))
         # instance is being terminated
-        return 'Terminated'
+        return strs.asg_instance_terminated
     if re.match(r'^detach', instance_detail.get('LifecycleState', 'unknown').lower()):
         logger.info('{0} is being detached by autoscaling'.format(instance_id))
         # instance is being detached
-        return 'Terminated'
+        return strs.asg_instance_terminated
     if instance_detail.get('ProtectedFromScaleIn', False):
         logger.info('{0} is protected by scale-in by autoscaling'.format(instance_id))
         # instance is protected from scale-in, so let's not replace
-        return 'Protected'
+        return strs.asg_instance_protected
     if instance_detail.get('LifecycleState', 'unknown') in ['EnteringStandby', 'Standby']:
         logger.info('{0} is marked as standby in autoscaling'.format(instance_id))
-        return 'Protected'
+        return strs.asg_instance_protected
     if instance_detail.get('LifecycleState') == 'InService' \
             and instance_detail.get('HealthStatus') == 'HEALTHY':
         logger.info('{0} is healthy and in-service in autoscaling'.format(instance_id))
         # Healthy instance!
-        return 'Healthy'
+        return strs.asg_instance_healthy
     # else return Pending ...
     logger.info('{0} is {1}/{2} ... defaulting to Pending'.format(
         instance_id, instance_detail.get('HealthStatus'), instance_detail.get('LifecycleState')))
-    return 'Pending'
+    return strs.asg_instance_pending
 
 
 def terminate_instance(instance_id, decrement_cap):
@@ -110,16 +112,16 @@ def attach_instance(asg_name, instance_id):
     except ClientError as c:
         if re.match(r'.*please update the AutoScalingGroup sizes appropriately', c.response['Error']['Message']):
             logger.error(c.response['Error']['Message'])
-            return 'AutoScaling group not sized correctly'
+            return strs.asg_not_sized_correctly
         if re.match(r'AutoScalingGroup name not found', c.response['Error']['Message']):
             logger.warning(c.response['Error']['Message'])
-            return 'AutoScaling Group Disappeared'
+            return strs.asg_disappeared
         if re.match(r'Instance .* is not in correct state', c.response['Error']['Message']):
             logger.error(c.response['Error']['Message'])
-            return 'Instance missing'
+            return strs.asg_instance_missing
         if re.match(r'Invalid Instance ID', c.response['Error']['Message']):
             logger.error(c.response['Error']['Message'])
-            return 'Invalid instance'
+            return strs.asg_instance_invalid
         raise
     logger.debug('Successfully attached {0} to {1}'.format(instance_id, asg_name))
-    return 'Success'
+    return strs.success

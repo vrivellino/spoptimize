@@ -6,6 +6,7 @@ import os
 
 from botocore.exceptions import ClientError
 
+import stepfn_strings as strs
 import util
 
 logger = logging.getLogger()
@@ -95,7 +96,7 @@ def get_spot_request_status(spot_request_id):
     except ClientError as c:
         if c.response['Error']['Code'] == 'InvalidSpotInstanceRequestID.NotFound':
             logger.info('Spot instance request {} does not exist'.format(spot_request_id))
-            return 'Failure'
+            return strs.spot_request_failure
         raise
     # logger.debug('Spot request status response: {}'.format(resp))
     spot_request = resp['SpotInstanceRequests'][0]
@@ -104,6 +105,6 @@ def get_spot_request_status(spot_request_id):
         return spot_request['InstanceId']
     if spot_request.get('State', 'unknown') in ['closed', 'cancelled', 'failed']:
         logger.info('Spot instance request {0} is {1}'.format(spot_request_id, spot_request['State']))
-        return 'Failure'
+        return strs.spot_request_failure
     logger.info('Spot instance request {0} is pending with state {1}'.format(spot_request_id, spot_request['State']))
-    return 'Pending'
+    return strs.spot_request_pending

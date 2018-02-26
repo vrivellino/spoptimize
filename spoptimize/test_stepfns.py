@@ -9,6 +9,7 @@ import unittest
 from mock import Mock
 
 import stepfns
+import stepfn_strings as strs
 from logging_helper import logging, setup_stream_handler
 
 logger = logging.getLogger()
@@ -158,7 +159,7 @@ class TestAsgInstanceStatus(unittest.TestCase):
         res = stepfns.asg_instance_state(self.asg_dict, 'i-abcd123')
         stepfns.asg_helper.describe_asg.assert_called()
         stepfns.asg_helper.get_instance_status.assert_called()
-        self.assertEqual(res, 'Healthy')
+        self.assertEqual(res, strs.asg_instance_healthy)
 
     def test_unknown_asg(self):
         logger.debug('TestAsgInstanceStatus.test_unknown_asg')
@@ -169,7 +170,7 @@ class TestAsgInstanceStatus(unittest.TestCase):
         res = stepfns.asg_instance_state(self.asg_dict, 'i-abcd123')
         stepfns.asg_helper.describe_asg.assert_called()
         stepfns.asg_helper.get_instance_status.assert_not_called()
-        self.assertEqual(res, 'AutoScaling Group Disappeared')
+        self.assertEqual(res, strs.asg_disappeared)
 
 
 class TestRequestSpotInstance(unittest.TestCase):
@@ -209,7 +210,7 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         res = stepfns.get_spot_request_status('sir-test')
         stepfns.spot_helper.get_spot_request_status.assert_called_with('sir-test')
         stepfns.ec2_helper.is_instance_running.assert_not_called()
-        self.assertEqual(res, 'Pending')
+        self.assertEqual(res, strs.spot_request_pending)
 
     def test_get_spot_request_status_running_instance(self):
         logger.debug('TestGetSpotRequestStatus.test_get_spot_request_status')
@@ -227,7 +228,7 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         res = stepfns.get_spot_request_status('sir-test')
         stepfns.spot_helper.get_spot_request_status.assert_called_with('sir-test')
         stepfns.ec2_helper.is_instance_running.assert_called_once_with('i-abcd123')
-        self.assertEqual(res, 'Pending')
+        self.assertEqual(res, strs.spot_request_pending)
 
     def test_get_spot_request_status_unknown_instance(self):
         logger.debug('TestGetSpotRequestStatus.test_get_spot_request_status')
@@ -236,7 +237,7 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         res = stepfns.get_spot_request_status('sir-test')
         stepfns.spot_helper.get_spot_request_status.assert_called_with('sir-test')
         stepfns.ec2_helper.is_instance_running.assert_called_once_with('i-abcd123')
-        self.assertEqual(res, 'Pending')
+        self.assertEqual(res, strs.spot_request_pending)
 
 
 class TestAttachSpotInstance(unittest.TestCase):
@@ -250,7 +251,7 @@ class TestAttachSpotInstance(unittest.TestCase):
 
     def test_no_capacity(self):
         logger.debug('TestAttachSpotInstance.test_no_capacity')
-        expected_res = 'Success'
+        expected_res = strs.success
         self.asg_dict['DesiredCapacity'] = self.asg_dict['MaxSize']
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict,
@@ -272,7 +273,7 @@ class TestAttachSpotInstance(unittest.TestCase):
 
     def test_capacity_available(self):
         logger.debug('TestAttachSpotInstance.test_capacity_available')
-        expected_res = 'Success'
+        expected_res = strs.success
         expected_tags = [{'Key': x['Key'], 'Value': x['Value']} for x in self.asg_dict['Tags']
                          if x.get('PropagateAtLaunch', False) and x.get('Key', '').split(':')[0] != 'aws']
         stepfns.asg_helper = Mock(**{
@@ -295,7 +296,7 @@ class TestAttachSpotInstance(unittest.TestCase):
 
     def test_no_asg(self):
         logger.debug('TestAttachSpotInstance.test_no_asg')
-        expected_res = 'AutoScaling Group Disappeared'
+        expected_res = strs.asg_disappeared
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': {}
         })
@@ -309,7 +310,7 @@ class TestAttachSpotInstance(unittest.TestCase):
 
     def test_spot_disappeared(self):
         logger.debug('TestAttachSpotInstance.test_spot_disappeared')
-        expected_res = 'Spot Instance Disappeared'
+        expected_res = strs.spot_instance_disappeared
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict,
             'get_instance_status.return_value': 'Healthy'
@@ -327,7 +328,7 @@ class TestAttachSpotInstance(unittest.TestCase):
 
     def test_od_disappeared_or_protected(self):
         logger.debug('TestAttachSpotInstance.test_od_disappeared_or_protected')
-        expected_res = 'OD Instance Disappeared Or Protected'
+        expected_res = strs.od_instance_disappeared
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict,
             'get_instance_status.return_value': 'Protected'
