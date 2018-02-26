@@ -21,6 +21,9 @@ iam = boto3.client('iam')
 
 
 def get_instance_profile_arn(instance_profile):
+    '''
+    Returns the ARN of instance_profile
+    '''
     if instance_profile[:12] == 'arn:aws:iam:':
         return instance_profile
     logger.info('Fetching arn for instance-profile {}'.format(instance_profile))
@@ -28,6 +31,10 @@ def get_instance_profile_arn(instance_profile):
 
 
 def gen_launch_specification(launch_config, avail_zone, subnet_id):
+    '''
+    Uses an autoscaling launch configuration to generate an EC2 launch specification
+    Returns a dict
+    '''
     logger.debug('Converting asg launch config to ec2 launch spec')
     # logger.debug('Launch Config: {}'.format(json.dumps(launch_config, indent=2, default=util.json_dumps_converter)))
     spot_launch_specification = {
@@ -59,6 +66,10 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
 
 
 def request_spot_instance(launch_config, avail_zone, subnet_id, client_token):
+    '''
+    Requests a spot instance
+    Returns a dict containing the spot instance request response
+    '''
     logger.info('Requesting spot instance in {0}/{1}'.format(avail_zone, subnet_id))
     launch_spec = gen_launch_specification(launch_config, avail_zone, subnet_id)
     try:
@@ -74,6 +85,10 @@ def request_spot_instance(launch_config, avail_zone, subnet_id, client_token):
 
 
 def get_spot_request_status(spot_request_id):
+    '''
+    Fetches the spot instance request status of spot_request_id
+    Returns instance-id of spot instance if running; 'Pending' or 'Failure' otherwise
+    '''
     logger.debug('Checking status of spot request {}'.format(spot_request_id))
     try:
         resp = ec2.describe_spot_instance_requests(SpotInstanceRequestIds=[spot_request_id])

@@ -18,6 +18,10 @@ ec2 = boto3.client('ec2')
 
 
 def terminate_instance(instance_id):
+    '''
+    Terminates instance_id via the EC2 API
+    No return value
+    '''
     logger.info('Terminating EC2 Instance {}'.format(instance_id))
     try:
         ec2.terminate_instances(InstanceIds=[instance_id])
@@ -29,6 +33,10 @@ def terminate_instance(instance_id):
 
 
 def tag_instance(instance_id, orig_instance_id, resource_tags=[]):
+    '''
+    Tags instance_id using tags of orig_instance_id and resource_tags
+    Returns True if successful, False if not
+    '''
     my_tags = copy.copy(resource_tags)
     my_tags.append({'Key': 'spoptimize:orig_instance_id', 'Value': orig_instance_id or 'UNKNWON'})
     logger.info('Tagging EC2 instance {0} with {1}'.format(instance_id, resource_tags))
@@ -44,6 +52,10 @@ def tag_instance(instance_id, orig_instance_id, resource_tags=[]):
 
 
 def is_instance_running(instance_id):
+    '''
+    Checks the state of instance_id
+    Returns True if the instance is running; False if not
+    '''
     logger.debug('Fetching EC2 instance state of {}'.format(instance_id))
     try:
         resp = ec2.describe_instances(InstanceIds=[instance_id])
@@ -60,6 +72,10 @@ def is_instance_running(instance_id):
 
 
 def is_spoptimize_instance(instance_id):
+    '''
+    Uses instance_id's tags to see if it was launched by spoptimize
+    Returns True/False
+    '''
     logger.debug('Determining if {} was launched by Spoptimize'.format(instance_id))
     try:
         resp = ec2.describe_instances(InstanceIds=[instance_id])

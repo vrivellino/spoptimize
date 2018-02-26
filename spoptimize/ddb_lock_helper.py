@@ -15,6 +15,10 @@ sfn = boto3.client('stepfunctions')
 
 
 def put_item(table_name, group_name, my_execution_arn, ttl, prev_execution_arn=None):
+    '''
+    Writes a lock to the dynamodb table
+    Returns put_item response if successful; None if put_item condition check fails
+    '''
     item = {
         'group_name': {'S': group_name},
         'execution_arn': {'S': my_execution_arn},
@@ -36,6 +40,10 @@ def put_item(table_name, group_name, my_execution_arn, ttl, prev_execution_arn=N
 
 
 def get_item(table_name, group_name):
+    '''
+    Fetches a lock record from the dynamodb table
+    Returns the step function execution arn of the locked record
+    '''
     logger.debug('Fetching {0} from DDB table {1}'.format(group_name, table_name))
     resp = ddb.get_item(TableName=table_name, Key={'group_name': {'S': group_name}}, ConsistentRead=True)
     item = resp.get('Item', {})
@@ -47,6 +55,10 @@ def get_item(table_name, group_name):
 
 
 def delete_item(table_name, group_name, my_execution_arn):
+    '''
+    Deletes a lock record from the dynamodb table
+    Returns delete_item response
+    '''
     key = {'group_name': {'S': group_name}}
     logger.debug('Deleting DDB item from table {0} [{1}]: {2}'.format(
         json.dumps(key, default=util.json_dumps_converter), my_execution_arn, table_name))
@@ -55,6 +67,10 @@ def delete_item(table_name, group_name, my_execution_arn):
 
 
 def is_execution_running(execution_arn):
+    '''
+    Fetches status of step function execution_arn
+    Returns True if running; False otherwise
+    '''
     logger.debug('Fetching state machine execution status of {}'.format(execution_arn))
     try:
         resp = sfn.describe_execution(executionArn=execution_arn)

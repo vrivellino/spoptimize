@@ -12,6 +12,10 @@ autoscaling = boto3.client('autoscaling')
 
 
 def describe_asg(asg_name):
+    '''
+    Calls autoscaling.describe_auto_scaling_groups()
+    Returns a dict containing autoscaling group description; Empty dict for group not found
+    '''
     logger.debug('Querying for autoscaling group {}'.format(asg_name))
     resp = autoscaling.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
     if len(resp['AutoScalingGroups']):
@@ -22,6 +26,10 @@ def describe_asg(asg_name):
 
 
 def get_launch_config(asg_name):
+    '''
+    Fetches the launch configuration of the specified autoscaling group
+    Returns a dict containing the launch configuration; Empty dict for group or luanch-config not found
+    '''
     logger.debug('Querying for launch config for autoscaling group {}'.format(asg_name))
     asg = describe_asg(asg_name)
     if not asg:
@@ -37,6 +45,10 @@ def get_launch_config(asg_name):
 
 
 def get_instance_status(instance_id):
+    '''
+    Fetches the autoscaling health status of instance_id
+    Returns a string
+    '''
     logger.debug('Fetching autoscaling health status for {}'.format(instance_id))
     resp = autoscaling.describe_auto_scaling_instances(InstanceIds=[instance_id])
     # instance is terminated or detatched if empty
@@ -72,6 +84,10 @@ def get_instance_status(instance_id):
 
 
 def terminate_instance(instance_id, decrement_cap):
+    '''
+    Terminates instance_id via the autoscaling api
+    No return value
+    '''
     logger.info('Terminating autoscaling instance {0}; decrement capacity: {1}'.format(instance_id, decrement_cap))
     try:
         autoscaling.terminate_instance_in_auto_scaling_group(
@@ -84,6 +100,10 @@ def terminate_instance(instance_id, decrement_cap):
 
 
 def attach_instance(asg_name, instance_id):
+    '''
+    Attaches instance_id to the specified autoscaling group
+    Returns a string describing the status of the attachment
+    '''
     logger.info('Attaching {0} to AutoScaling group {1}'.format(instance_id, asg_name))
     try:
         autoscaling.attach_instances(InstanceIds=[instance_id], AutoScalingGroupName=asg_name)
