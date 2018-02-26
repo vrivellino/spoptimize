@@ -1,11 +1,11 @@
 import boto3
-import datetime
 import json
 import logging
 import os
 
 from botocore.exceptions import ClientError
 
+import stepfn_strings as strs
 import util
 
 logger = logging.getLogger()
@@ -21,6 +21,9 @@ iam = boto3.client('iam')
 
 
 def get_instance_profile_arn(instance_profile):
+    '''
+    Returns the ARN of instance_profile
+    '''
     if instance_profile[:12] == 'arn:aws:iam:':
         return instance_profile
     logger.info('Fetching arn for instance-profile {}'.format(instance_profile))
@@ -28,6 +31,10 @@ def get_instance_profile_arn(instance_profile):
 
 
 def gen_launch_specification(launch_config, avail_zone, subnet_id):
+    '''
+    Uses an autoscaling launch configuration to generate an EC2 launch specification
+    Returns a dict
+    '''
     logger.debug('Converting asg launch config to ec2 launch spec')
     # logger.debug('Launch Config: {}'.format(json.dumps(launch_config, indent=2, default=util.json_dumps_converter)))
     spot_launch_specification = {
@@ -59,6 +66,10 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
 
 
 def request_spot_instance(launch_config, avail_zone, subnet_id, client_token):
+    '''
+    Requests a spot instance
+    Returns a dict containing the spot instance request response
+    '''
     logger.info('Requesting spot instance in {0}/{1}'.format(avail_zone, subnet_id))
     launch_spec = gen_launch_specification(launch_config, avail_zone, subnet_id)
     try:
@@ -74,13 +85,17 @@ def request_spot_instance(launch_config, avail_zone, subnet_id, client_token):
 
 
 def get_spot_request_status(spot_request_id):
+    '''
+    Fetches the spot instance request status of spot_request_id
+    Returns instance-id of spot instance if running; 'Pending' or 'Failure' otherwise
+    '''
     logger.debug('Checking status of spot request {}'.format(spot_request_id))
     try:
         resp = ec2.describe_spot_instance_requests(SpotInstanceRequestIds=[spot_request_id])
     except ClientError as c:
         if c.response['Error']['Code'] == 'InvalidSpotInstanceRequestID.NotFound':
             logger.info('Spot instance request {} does not exist'.format(spot_request_id))
-            return 'Failure'
+            return strs.spot_request_failure
         raise
     # logger.debug('Spot request status response: {}'.format(resp))
     spot_request = resp['SpotInstanceRequests'][0]
@@ -89,6 +104,6 @@ def get_spot_request_status(spot_request_id):
         return spot_request['InstanceId']
     if spot_request.get('State', 'unknown') in ['closed', 'cancelled', 'failed']:
         logger.info('Spot instance request {0} is {1}'.format(spot_request_id, spot_request['State']))
-        return 'Failure'
+        return strs.spot_request_failure
     logger.info('Spot instance request {0} is pending with state {1}'.format(spot_request_id, spot_request['State']))
-    return 'Pending'
+    return strs.spot_request_pending

@@ -7,6 +7,7 @@ from botocore.exceptions import ClientError
 from mock import Mock
 
 import asg_helper
+import stepfn_strings as strs
 from logging_helper import logging, setup_stream_handler
 
 logger = logging.getLogger()
@@ -82,21 +83,21 @@ class TestGetInstanceStatus(unittest.TestCase):
         logger.debug('TestGetInstanceStatus.test_healthy_inservice')
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Healthy')
+        self.assertEqual(res, strs.asg_instance_healthy)
 
     def test_healthy_pending(self):
         logger.debug('TestGetInstanceStatus.test_healthy_pending')
         self.mock_resp['LifecycleState'] = 'Pending'
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Pending')
+        self.assertEqual(res, strs.asg_instance_pending)
 
     def test_unhealthy_inservice(self):
         logger.debug('TestGetInstanceStatus.test_unhealthy_inservice')
         self.mock_resp['HealthStatus'] = 'UNHEALTHY'
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Pending')
+        self.assertEqual(res, strs.asg_instance_pending)
 
     def test_unhealthy_terminating(self):
         logger.debug('TestGetInstanceStatus.test_unhealthy_terminating')
@@ -104,42 +105,42 @@ class TestGetInstanceStatus(unittest.TestCase):
         self.mock_resp['LifecycleState'] = 'Terminating'
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Terminated')
+        self.assertEqual(res, strs.asg_instance_terminated)
 
     def test_healthy_entering_standby(self):
         logger.debug('TestGetInstanceStatus.test_healthy_entering_standby')
         self.mock_resp['LifecycleState'] = 'EnteringStandby'
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Protected')
+        self.assertEqual(res, strs.asg_instance_protected)
 
     def test_healthy_standby(self):
         logger.debug('TestGetInstanceStatus.test_healthy_standby')
         self.mock_resp['LifecycleState'] = 'Standby'
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Protected')
+        self.assertEqual(res, strs.asg_instance_protected)
 
     def test_healthy_detaching(self):
         logger.debug('TestGetInstanceStatus.test_healthy_detaching')
         self.mock_resp['LifecycleState'] = 'Detaching'
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Terminated')
+        self.assertEqual(res, strs.asg_instance_terminated)
 
     def test_protected_from_scalein(self):
         logger.debug('TestGetInstanceStatus.test_protected_from_scalein')
         self.mock_resp['ProtectedFromScaleIn'] = True
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Protected')
+        self.assertEqual(res, strs.asg_instance_protected)
 
     def test_unknown_instance(self):
         logger.debug('TestGetInstanceStatus.test_unknown_instance')
         self.mock_attrs['describe_auto_scaling_instances.return_value'] = {'AutoScalingInstances': []}
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         res = asg_helper.get_instance_status(self.instance_id)
-        self.assertEqual(res, 'Terminated')
+        self.assertEqual(res, strs.asg_instance_terminated)
 
 
 class TestTerminateInstance(unittest.TestCase):
@@ -194,14 +195,14 @@ class TestAttachInstance(unittest.TestCase):
 
     def test_attach_instance(self):
         logger.debug('TestAttachInstance.test_attach_instance')
-        expected_res = 'Success'
+        expected_res = strs.success
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         self.assertEqual(asg_helper.attach_instance('group-name', 'i-abcd123'), expected_res)
         asg_helper.autoscaling.attach_instances.assert_called()
 
     def test_attach_instance_incorrect_sizing(self):
         logger.debug('TestAttachInstance.test_attach_instance_incorrect_sizing')
-        expected_res = 'AutoScaling group not sized correctly'
+        expected_res = strs.asg_not_sized_correctly
         self.mock_attrs['attach_instances.side_effect'] = ClientError({
             'Error': {
                 'Code': 'ValidationError',
@@ -215,7 +216,7 @@ class TestAttachInstance(unittest.TestCase):
 
     def test_attach_instance_group_not_found(self):
         logger.debug('TestAttachInstance.test_attach_instance_group_not_found')
-        expected_res = 'Instance missing'
+        expected_res = strs.asg_instance_missing
         self.mock_attrs['attach_instances.side_effect'] = ClientError({
             'Error': {
                 'Code': 'ValidationError',
@@ -228,7 +229,7 @@ class TestAttachInstance(unittest.TestCase):
 
     def test_attach_instance_invalid_state(self):
         logger.debug('TestAttachInstance.test_attach_instance_invalid_state')
-        expected_res = 'AutoScaling Group Disappeared'
+        expected_res = strs.asg_disappeared
         self.mock_attrs['attach_instances.side_effect'] = ClientError({
             'Error': {
                 'Code': 'ValidationError',
@@ -248,7 +249,7 @@ class TestAttachInstance(unittest.TestCase):
                 'Type': 'Sender'
             }
         }, 'AttachInstances')
-        expected_res = 'Invalid instance'
+        expected_res = strs.asg_instance_invalid
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         self.assertEqual(asg_helper.attach_instance('group-name', 'i-abcd123XXX'), expected_res)
 

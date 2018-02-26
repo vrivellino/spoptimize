@@ -9,6 +9,7 @@ import asg_helper
 import ddb_lock_helper
 import ec2_helper
 import spot_helper
+import stepfn_strings as strs
 # import util
 
 logger = logging.getLogger()
@@ -92,7 +93,7 @@ def asg_instance_state(asg_dict, instance_id):
     logger.debug('Fetching instance status for {0} in {1}'.format(instance_id, asg_name))
     if not asg_helper.describe_asg(asg_name):
         logger.warning('AutoScaling group {} not longer exists'.format(asg_name))
-        return 'AutoScaling Group Disappeared'
+        return strs.asg_disappeared
     return asg_helper.get_instance_status(instance_id)
 
 
@@ -115,7 +116,7 @@ def get_spot_request_status(spot_request_id):
         if ec2_helper.is_instance_running(spot_request_result):
             return spot_request_result
         else:
-            return 'Pending'
+            return strs.spot_request_pending
     return spot_request_result
 
 
@@ -129,15 +130,15 @@ def attach_spot_instance(asg_dict, spot_instance_id, ondemand_instance_id):
     asg = asg_helper.describe_asg(asg_name)
     if not asg:
         logger.info('AutoScaling group {0} no longer exists; Terminating {1}'.format(asg_name, spot_instance_id))
-        return 'AutoScaling Group Disappeared'
+        return strs.asg_disappeared
     resource_tags = [{'Key': x['Key'], 'Value': x['Value']} for x in asg['Tags']
                      if x.get('PropagateAtLaunch', False) and x.get('Key', '').split(':')[0] != 'aws']
     if not ec2_helper.tag_instance(spot_instance_id, ondemand_instance_id, resource_tags):
         logger.warning('Spot instance {} does not appear to exist'.format(spot_instance_id))
-        return 'Spot Instance Disappeared'
+        return strs.spot_instance_disappeared
     if asg_helper.get_instance_status(ondemand_instance_id) != 'Healthy':
         logger.info('OnDemand instance {} is protected or unhealthy'.format(ondemand_instance_id))
-        return 'OD Instance Disappeared Or Protected'
+        return strs.od_instance_disappeared
     if asg['DesiredCapacity'] == asg['MaxSize']:
         logger.info("AutoScaling group {0}'s DesiredCapacity equals MaxSize - terminating {1}, then attaching {2}".format(
             asg_name, ondemand_instance_id, spot_instance_id))

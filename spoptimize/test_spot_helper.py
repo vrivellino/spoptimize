@@ -8,6 +8,7 @@ from botocore.exceptions import ClientError
 from mock import Mock
 
 import spot_helper
+import stepfn_strings as strs
 # import util
 from logging_helper import logging, setup_stream_handler
 
@@ -234,7 +235,7 @@ class TestGetSpotRequestStatus(unittest.TestCase):
 
     def test_get_spot_request_status_not_found(self):
         logger.debug('TestGetSpotRequest_status.test_get_spot_request_status_not_found')
-        expected_res = 'Failure'
+        expected_res = strs.spot_request_failure
         self.mock_attrs['describe_spot_instance_requests.side_effect'] = ClientError({
             'Error': {
                 'Code': 'InvalidSpotInstanceRequestID.NotFound',
@@ -247,7 +248,7 @@ class TestGetSpotRequestStatus(unittest.TestCase):
 
     def test_get_spot_request_status_failure(self):
         logger.debug('TestGetSpotRequest_status.test_get_spot_request_status_failure')
-        expected_res = 'Failure'
+        expected_res = strs.spot_request_failure
         self.mock_attrs['describe_spot_instance_requests.return_value']['SpotInstanceRequests'][0]['Status']['Message'] = 'Dummy message'
         self.mock_attrs['describe_spot_instance_requests.return_value']['SpotInstanceRequests'][0]['Status']['Code'] = 'dummy-code'
         for state in ['closed', 'cancelled', 'failed']:
@@ -258,7 +259,7 @@ class TestGetSpotRequestStatus(unittest.TestCase):
 
     def test_get_spot_request_status_pending(self):
         logger.debug('TestGetSpotRequest_status.test_get_spot_request_status_failure')
-        expected_res = 'Pending'
+        expected_res = strs.spot_request_pending
         self.mock_attrs['describe_spot_instance_requests.return_value']['SpotInstanceRequests'][0]['Status']['Message'] = 'Your Spot request has been submitted for review, and is pending evaluation.'
         self.mock_attrs['describe_spot_instance_requests.return_value']['SpotInstanceRequests'][0]['Status']['Code'] = 'pending-evaluation'
         self.mock_attrs['describe_spot_instance_requests.return_value']['SpotInstanceRequests'][0]['State'] = 'open'
