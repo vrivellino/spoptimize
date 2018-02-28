@@ -13,18 +13,32 @@ logging.getLogger('botocore').setLevel(logging.WARNING)
 autoscaling = boto3.client('autoscaling')
 
 
+asg_copy_keys = [
+    'AutoScalingGroupName',
+    # 'LaunchConfigurationName',
+    'HealthCheckGracePeriod',
+    'MinSize',
+    'MaxSize',
+    'DesiredCapacity',
+    'Tags'
+]
+
+
 def describe_asg(asg_name):
     '''
     Calls autoscaling.describe_auto_scaling_groups()
     Returns a dict containing autoscaling group description; Empty dict for group not found
     '''
     logger.debug('Querying for autoscaling group {}'.format(asg_name))
+    retval = {}
     resp = autoscaling.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
     if len(resp['AutoScalingGroups']):
         logger.debug('Autoscaling group {} found'.format(asg_name))
-        return resp['AutoScalingGroups'][0]
+        for k in asg_copy_keys:
+            retval[k] = resp['AutoScalingGroups'][0][k]
+        return retval
     logger.debug('Autoscaling group {} not found'.format(asg_name))
-    return {}
+    return retval
 
 
 def get_launch_config(asg_name):
@@ -33,10 +47,10 @@ def get_launch_config(asg_name):
     Returns a dict containing the launch configuration; Empty dict for group or luanch-config not found
     '''
     logger.debug('Querying for launch config for autoscaling group {}'.format(asg_name))
-    asg = describe_asg(asg_name)
-    if not asg:
+    resp = autoscaling.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
+    if len(resp.get('AutoScalingGroups', [])) == 0:
         return {}
-    lc_name = asg.get('LaunchConfigurationName')
+    lc_name = resp['AutoScalingGroups'][0]['LaunchConfigurationName']
     logger.debug('Querying for launchh config {}'.format(lc_name))
     resp = autoscaling.describe_launch_configurations(LaunchConfigurationNames=[lc_name])
     if len(resp['LaunchConfigurations']):

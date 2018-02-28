@@ -31,7 +31,8 @@ class TestDescribeAsg(unittest.TestCase):
     def test_valid_asg(self):
         logger.debug('TestDescribeAsg.test_valid_asg')
         asg_helper.autoscaling = Mock(**self.mock_attrs)
-        expected_dict = mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]
+        mock_response = mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]
+        expected_dict = {k: mock_response[k] for k in mock_response if k in asg_helper.asg_copy_keys}
         asg_dict = asg_helper.describe_asg(self.asg_name)
         self.assertDictEqual(asg_dict, expected_dict)
 

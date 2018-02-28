@@ -81,7 +81,7 @@ def request_spot_instance(launch_config, avail_zone, subnet_id, client_token):
             return {'SpoptimizeError': 'MaxSpotInstanceCountExceeded'}
         raise
     logger.debug('Spot request response: {}'.format(json.dumps(resp, indent=2, default=util.json_dumps_converter)))
-    return resp['SpotInstanceRequests'][0]
+    return {'SpotInstanceRequestId': resp['SpotInstanceRequests'][0]['SpotInstanceRequestId']}
 
 
 def get_spot_request_status(spot_request_id):
