@@ -193,7 +193,9 @@ class TestRequestSpotInstance(unittest.TestCase):
     def test_request_spot_instance(self):
         logger.debug('TestRequestSpotInstance.test_request_spot_instance')
         spot_helper.ec2 = Mock(**self.mock_attrs)
-        expected_dict = mock_attrs['request_spot_instances.return_value']['SpotInstanceRequests'][0]
+        expected_dict = {
+            'SpotInstanceRequestId': mock_attrs['request_spot_instances.return_value']['SpotInstanceRequests'][0]['SpotInstanceRequestId']
+        }
         spot_req_dict = spot_helper.request_spot_instance(self.launch_config, self.az, self.subnet_id, self.client_token)
         spot_helper.ec2.request_spot_instances.assert_called_once_with(
             InstanceCount=1,

@@ -10,6 +10,7 @@ from mock import Mock
 
 import stepfns
 import stepfn_strings as strs
+from asg_helper import asg_copy_keys
 from logging_helper import logging, setup_stream_handler
 
 logger = logging.getLogger()
@@ -48,7 +49,8 @@ class TestInitMachineState(unittest.TestCase):
     def setUp(self):
         # self.maxDiff = None
         self.mock_attrs = copy.deepcopy(mock_attrs)
-        self.asg_dict = self.mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]
+        mock_response = self.mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]
+        self.asg_dict = {k: mock_response[k] for k in mock_response if k in asg_copy_keys}
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
@@ -144,7 +146,8 @@ class TestInitMachineState(unittest.TestCase):
 class TestAsgInstanceStatus(unittest.TestCase):
 
     def setUp(self):
-        self.asg_dict = copy.deepcopy(mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0])
+        mock_response = copy.deepcopy(mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0])
+        self.asg_dict = {k: mock_response[k] for k in mock_response if k in asg_copy_keys}
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
@@ -176,7 +179,8 @@ class TestAsgInstanceStatus(unittest.TestCase):
 class TestRequestSpotInstance(unittest.TestCase):
 
     def setUp(self):
-        self.asg_dict = copy.deepcopy(mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0])
+        mock_response = copy.deepcopy(mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0])
+        self.asg_dict = {k: mock_response[k] for k in mock_response if k in asg_copy_keys}
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
@@ -185,7 +189,7 @@ class TestRequestSpotInstance(unittest.TestCase):
     def test_request_spot(self):
         logger.debug('TestRequestSpotInstance.test_request_spot')
         stepfns.spot_helper = Mock(**{
-            'request_spot_instance.return_value': {'dummy': 'response'}
+            'request_spot_instance.return_value': {'SpotInstanceRequestId': 'sir-xyz123'}
         })
         res = stepfns.request_spot_instance(self.asg_dict,
                                             launch_notification['Details']['Availability Zone'],
@@ -193,7 +197,7 @@ class TestRequestSpotInstance(unittest.TestCase):
                                             'test-activity')
         stepfns.asg_helper.get_launch_config.assert_called()
         stepfns.spot_helper.request_spot_instance.assert_called()
-        self.assertDictEqual(res, {'dummy': 'response'})
+        self.assertDictEqual(res, {'SpotInstanceRequestId': 'sir-xyz123'})
 
 
 class TestGetSpotRequestStatus(unittest.TestCase):
@@ -243,7 +247,8 @@ class TestGetSpotRequestStatus(unittest.TestCase):
 class TestAttachSpotInstance(unittest.TestCase):
 
     def setUp(self):
-        self.asg_dict = copy.deepcopy(mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0])
+        mock_response = copy.deepcopy(mock_attrs['autoscaling']['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0])
+        self.asg_dict = {k: mock_response[k] for k in mock_response if k in asg_copy_keys}
         stepfns.asg_helper = Mock()
         stepfns.ec2_helper = Mock()
         stepfns.spot_helper = Mock()
