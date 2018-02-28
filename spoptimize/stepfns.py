@@ -60,10 +60,10 @@ def init_machine_state(sns_message):
     spoptimize_tags = get_spoptimize_tags(asg.get('Tags', []))
     init_sleep_interval = spoptimize_tags.get(
         'init_sleep_interval',
-        asg['HealthCheckGracePeriod'] * (2 + asg['DesiredCapacity'] + random())
+        (asg['HealthCheckGracePeriod'] * asg['DesiredCapacity']) + (60 * random()) + 30
     )
     spot_req_sleep_interval = spoptimize_tags.get('spot_req_sleep_interval', 30)
-    spot_attach_sleep_interval = spoptimize_tags.get('spot_attach_sleep_interval', asg['HealthCheckGracePeriod'] * 2)
+    spot_attach_sleep_interval = spoptimize_tags.get('spot_attach_sleep_interval', asg['HealthCheckGracePeriod'] + 30)
     spot_failure_sleep_interval = spoptimize_tags.get('spot_failure_sleep_interval', 3600)
     logger.info('Initial wait interval {}s'.format(init_sleep_interval))
     logger.info('Spot request wait interval {}s'.format(spot_req_sleep_interval))

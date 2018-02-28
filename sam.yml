@@ -216,6 +216,11 @@ Resources:
                 "Next": "OD Instance Healthy?",
                 "ResultPath": "$.ondemand_instance_status",
                 "Retry": [{
+                  "ErrorEquals": [ "InstancePending" ],
+                  "IntervalSeconds": 30,
+                  "MaxAttempts": 30,
+                  "BackoffRate": 1
+                },{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 5,
                   "MaxAttempts": 5,
@@ -231,19 +236,22 @@ Resources:
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Terminated",
-                  "Next": "No Op"
+                  "Next": "Instance or ASG Disappeared"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Protected",
-                  "Next": "No Op"
+                  "Next": "Instance or ASG Disappeared"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "AutoScaling Group Disappeared",
-                  "Next": "No Op"
+                  "Next": "Instance or ASG Disappeared"
                 }],
-                "Default": "Wait for New ASG Instance"
+                "Default": "Unrecoverable OD Instance Failure"
               },
-              "No Op": {
+              "Unrecoverable OD Instance Failure": {
+                "Type": "Fail"
+              },
+              "Instance or ASG Disappeared": {
                 "Type": "Succeed"
               },
               "Request Spot Instance": {
@@ -420,6 +428,11 @@ Resources:
                 "Next": "Spot Instance Healthy?",
                 "ResultPath": "$.spot_instance_status",
                 "Retry": [{
+                  "ErrorEquals": [ "InstancePending" ],
+                  "IntervalSeconds": 30,
+                  "MaxAttempts": 30,
+                  "BackoffRate": 1
+                },{
                   "ErrorEquals": [ "States.ALL" ],
                   "IntervalSeconds": 5,
                   "MaxAttempts": 5,
@@ -434,14 +447,10 @@ Resources:
                   "Next": "Release Lock after Success"
                 },{
                   "Variable": "$.spot_instance_status",
-                  "StringEquals": "Terminated",
-                  "Next": "Release Lock After Spot Failure"
-                },{
-                  "Variable": "$.spot_instance_status",
                   "StringEquals": "AutoScaling Group Disappeared",
                   "Next": "Release Lock Before Spot Term"
                 }],
-                "Default": "Wait for Attachment"
+                "Default": "Release Lock After Spot Failure"
               },
               "Release Lock After Spot Failure": {
                 "Type": "Task",
