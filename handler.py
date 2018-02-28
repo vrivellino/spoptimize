@@ -14,6 +14,10 @@ logger.setLevel(logging.INFO)
 sfn = boto3.client('stepfunctions')
 
 
+class InstancePending(Exception):
+    pass
+
+
 class GroupLocked(Exception):
     pass
 
@@ -56,6 +60,8 @@ def handler(event, context):
     # Test New ASG Instance
     elif action == 'ondemand-instance-healthy':
         retval = stepfns.asg_instance_state(event['autoscaling_group'], event['ondemand_instance_id'])
+        if retval == 'Pending':
+            raise InstancePending('{} is not online and/or healthy'.format(event['ondemand_instance_id']))
 
     # Request Spot Instance
     elif action == 'request-spot':
@@ -105,6 +111,8 @@ def handler(event, context):
     # Test Attached Instance
     elif action == 'spot-instance-healthy':
         retval = stepfns.asg_instance_state(event['autoscaling_group'], event['spot_request_result'])
+        if retval == 'Pending':
+            raise InstancePending('{} is not online and/or healthy'.format(event['spot_request_result']))
 
     else:
         raise Exception('SPOPTIMIZE_ACTION env var specifies unknown action: {}'.format(action))

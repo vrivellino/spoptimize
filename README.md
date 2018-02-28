@@ -103,11 +103,11 @@ Spoptimize's wait intervals may be overridden per AutoScaling via the use of tag
 
 - `spoptimize:init_sleep_interval`: Initial wait interval after launch notification is received. Spoptimize
   won't do anything during this wait period. **Defaults** to approximately the group's Health Check Grace
-  Period times (two plus the Desired Capacity). This is directly correlated to the capacity to allow for
+  Period times the Desired Capacity plus 30-90s. This is directly correlated to the capacity to allow for
   rolling updates to complete before any instances are replaced.
 - `spoptimize:spot_req_sleep_interval`: Wait interval following spot instance request. **Default** is 30s.
 - `spoptimize:spot_attach_sleep_interval`: Wait interval following attachment of spot instance to
-  autoscaling group. **Defaults** to 2 times the group's Health Check Grace Period.
+  autoscaling group. **Defaults** to the group's Health Check Grace Period plus 30s.
 - `spoptimize:spot_failure_sleep_interval`: Wait interval between iterations following a spot instance
   failure. **Defaults** to 1 hour. A spot failure may be a failed spot instance request or a failure of the
   spot instance after it comes online.
