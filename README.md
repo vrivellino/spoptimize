@@ -47,15 +47,15 @@ deployment script.
 
 Deploy both the IAM stack and the Step Functions & Lambdas:
 
-    $ ./script/deploy.sh
+    $ ./deploy.sh
 
 Deploy just the IAM stack:
 
-    $ ./script/deploy.sh iam
+    $ ./deploy.sh iam
 
 Deploy just the Step Functions and Lambdas:
 
-    $ ./script/deploy.sh cfn
+    $ ./deploy.sh cfn
 
 ### AutoScaling Configuration
 
