@@ -1,5 +1,8 @@
 # ChangeLog
 
+## v1.2.1
+* #[37](https://github.com/vrivellino/spoptimize/pull/37): Deploy.sh fix
+
 ## v1.2.0
 * #[35](https://github.com/vrivellino/spoptimize/pull/35): Release helper and Change Log
 * #[34](https://github.com/vrivellino/spoptimize/pull/34): Don't loop after checking ASG instance health
