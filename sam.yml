@@ -233,22 +233,22 @@ Resources:
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Terminated",
-                  "Next": "Instance or ASG Disappeared"
+                  "Next": "Instance Protected/Detached/Terminated or ASG Disappeared"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Protected",
-                  "Next": "Instance or ASG Disappeared"
+                  "Next": "Instance Protected/Detached/Terminated or ASG Disappeared"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "AutoScaling Group Disappeared",
-                  "Next": "Instance or ASG Disappeared"
+                  "Next": "Instance Protected/Detached/Terminated or ASG Disappeared"
                 }],
                 "Default": "Unrecoverable OD Instance Failure"
               },
               "Unrecoverable OD Instance Failure": {
                 "Type": "Fail"
               },
-              "Instance or ASG Disappeared": {
+              "Instance Protected/Detached/Terminated or ASG Disappeared": {
                 "Type": "Succeed"
               },
               "Request Spot Instance": {
