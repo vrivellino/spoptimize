@@ -58,6 +58,7 @@ def init_machine_state(sns_message):
         logger.warning('Autoscaling Group {} does not exist'.format(group_name))
         return ({}, 'AutoScaling Group does not exist')
     spoptimize_tags = get_spoptimize_tags(asg.get('Tags', []))
+    min_protected_instances = spoptimize_tags.get('min_protected_instances', 0)
     init_sleep_interval = spoptimize_tags.get(
         'init_sleep_interval',
         (asg['HealthCheckGracePeriod'] * asg['DesiredCapacity']) + (60 * random()) + 30
@@ -78,6 +79,7 @@ def init_machine_state(sns_message):
         'launch_subnet_id': subnet_details['Subnet ID'],
         'launch_az': subnet_details['Availability Zone'],
         'autoscaling_group': asg,
+        'min_protected_instances': int(min_protected_instances),
         'init_sleep_interval': int(init_sleep_interval),
         'spot_req_sleep_interval': int(spot_req_sleep_interval),
         'spot_attach_sleep_interval': int(spot_attach_sleep_interval),
@@ -182,3 +184,17 @@ def release_lock(table_name, group_name, my_execution_arn):
     logger.info('Releasing lock for {}'.format(group_name))
     logger.debug('My execution ARN is {}'.format(my_execution_arn))
     ddb_lock_helper.delete_item(table_name, group_name, my_execution_arn)
+
+
+def protected_instance(group_name, instance_id, min_protected, lock_table_name, my_execution_arn):
+    if not min_protected:
+        logger.info('No protected instances required for auto-scaling group {}'.format(group_name))
+        return None
+    logger.info('{0} protected instances required fro auto-scaling group {1}'.format(min_protected, group_name))
+    if not acquire_lock(lock_table_name, group_name, my_execution_arn):
+        return strs.unable_to_acquire_lock
+    if asg_helper.not_enough_protected_instances(group_name, min_protected):
+        logger.info('Marking {0} as protected from scale-in in group {1}'.format(instance_id, group_name))
+        asg_helper.protect_instance(group_name, instance_id)
+    release_lock(lock_table_name, group_name, my_execution_arn)
+    return None

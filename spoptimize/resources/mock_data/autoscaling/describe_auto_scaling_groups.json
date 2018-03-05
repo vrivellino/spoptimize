@@ -83,6 +83,27 @@
                     "HealthStatus": "Healthy",
                     "LifecycleState": "InService",
                     "LaunchConfigurationName": "spoptimize-asgs-LaunchConfigOD-10Y5NXG6WOBRQ"
+                }, {
+                    "ProtectedFromScaleIn": false,
+                    "AvailabilityZone": "us-east-1c",
+                    "InstanceId": "i-05c37ef78f4842177",
+                    "HealthStatus": "Healthy",
+                    "LifecycleState": "InService",
+                    "LaunchConfigurationName": "spoptimize-asgs-LaunchConfigOD-10Y5NXG6WOBRQ"
+                }, {
+                    "ProtectedFromScaleIn": false,
+                    "AvailabilityZone": "us-east-1f",
+                    "InstanceId": "i-0c50c438ac76643f8",
+                    "HealthStatus": "Healthy",
+                    "LifecycleState": "InService",
+                    "LaunchConfigurationName": "spoptimize-asgs-LaunchConfigOD-10Y5NXG6WOBRQ"
+                }, {
+                    "ProtectedFromScaleIn": false,
+                    "AvailabilityZone": "us-east-1c",
+                    "InstanceId": "i-0f3e40be9c6d45d9f",
+                    "HealthStatus": "Healthy",
+                    "LifecycleState": "InService",
+                    "LaunchConfigurationName": "spoptimize-asgs-LaunchConfigOD-10Y5NXG6WOBRQ"
                 }
             ],
             "MaxSize": 12,
