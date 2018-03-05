@@ -14,3 +14,5 @@ spot_request_pending = 'Pending'
 
 spot_instance_disappeared = 'Spot Instance Disappeared'
 od_instance_disappeared = 'OD Instance Disappeared Or Protected'
+
+unable_to_acquire_lock = 'Unable to acquire lock'

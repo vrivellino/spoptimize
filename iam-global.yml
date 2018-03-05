@@ -57,7 +57,7 @@ Resources:
               - autoscaling:SetDesiredCapacity
               - autoscaling:AttachInstances
               - autoscaling:TerminateInstanceInAutoScalingGroup
-              # - autoscaling:DetachInstances
+              - autoscaling:SetInstanceProtection
             Resource: "*"
           - Sid: SpotRequests
             Effect: Allow

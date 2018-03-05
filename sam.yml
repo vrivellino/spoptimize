@@ -39,6 +39,8 @@ Globals:
     Environment:
       Variables:
         SPOPTIMIZE_DEBUG: !Ref DebugLambdas
+        SPOPTIMIZE_LOCK_TABLE: !Ref LockTable
+        SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
 
 Resources:
   LockTable:
@@ -68,7 +70,6 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'start-state-machine'
-          SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
       Events:
         AsgLaunchNotifications:
           Type: SNS
@@ -156,8 +157,6 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'acquire-lock'
-          SPOPTIMIZE_LOCK_TABLE: !Ref LockTable
-          SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
 
   ReleaseAutoScalingGroupLock:
     Type: AWS::Serverless::Function
@@ -169,8 +168,6 @@ Resources:
       Environment:
         Variables:
           SPOPTIMIZE_ACTION: 'release-lock'
-          SPOPTIMIZE_LOCK_TABLE: !Ref LockTable
-          SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
 
   AttachSpot:
     Type: AWS::Serverless::Function
@@ -236,22 +233,22 @@ Resources:
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Terminated",
-                  "Next": "Instance or ASG Disappeared"
+                  "Next": "Instance Protected/Detached/Terminated or ASG Disappeared"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "Protected",
-                  "Next": "Instance or ASG Disappeared"
+                  "Next": "Instance Protected/Detached/Terminated or ASG Disappeared"
                 },{
                   "Variable": "$.ondemand_instance_status",
                   "StringEquals": "AutoScaling Group Disappeared",
-                  "Next": "Instance or ASG Disappeared"
+                  "Next": "Instance Protected/Detached/Terminated or ASG Disappeared"
                 }],
                 "Default": "Unrecoverable OD Instance Failure"
               },
               "Unrecoverable OD Instance Failure": {
                 "Type": "Fail"
               },
-              "Instance or ASG Disappeared": {
+              "Instance Protected/Detached/Terminated or ASG Disappeared": {
                 "Type": "Succeed"
               },
               "Request Spot Instance": {

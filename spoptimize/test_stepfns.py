@@ -37,6 +37,7 @@ state_machine_init = {
     'launch_subnet_id': launch_notification['Details']['Subnet ID'],
     'launch_az': launch_notification['Details']['Availability Zone'],
     'autoscaling_group': {},
+    'min_protected_instances': 0,
     'init_sleep_interval': 0,
     'spot_req_sleep_interval': 30,
     'spot_attach_sleep_interval': 0,
@@ -128,10 +129,12 @@ class TestInitMachineState(unittest.TestCase):
         spot_req_wait_s = wait_s + 1
         attach_wait_s = wait_s + 2
         spot_fail_wait_s = wait_s + 3
+        min_protected = 2
         self.asg_dict['Tags'].append({'Key': 'spoptimize:init_sleep_interval', 'Value': '{}'.format(wait_s)})
         self.asg_dict['Tags'].append({'Key': 'spoptimize:spot_req_sleep_interval', 'Value': '{}'.format(spot_req_wait_s)})
         self.asg_dict['Tags'].append({'Key': 'spoptimize:spot_attach_sleep_interval', 'Value': '{}'.format(attach_wait_s)})
         self.asg_dict['Tags'].append({'Key': 'spoptimize:spot_failure_sleep_interval', 'Value': '{}'.format(spot_fail_wait_s)})
+        self.asg_dict['Tags'].append({'Key': 'spoptimize:min_protected_instances', 'Value': '{}'.format(min_protected)})
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict
         })
@@ -140,6 +143,7 @@ class TestInitMachineState(unittest.TestCase):
         self.assertEqual(state_machine_dict['spot_req_sleep_interval'], spot_req_wait_s)
         self.assertEqual(state_machine_dict['spot_attach_sleep_interval'], attach_wait_s)
         self.assertEqual(state_machine_dict['spot_failure_sleep_interval'], spot_fail_wait_s)
+        self.assertEqual(state_machine_dict['min_protected_instances'], min_protected)
         self.assertIsNone(msg)
 
 
@@ -446,6 +450,89 @@ class TestAcquireLock(unittest.TestCase):
         stepfns.ddb_lock_helper.get_item.assert_called_once()
         stepfns.ddb_lock_helper.is_execution_running.assert_called_once()
         self.assertFalse(res)
+
+
+class TestReleaseLock(unittest.TestCase):
+
+    def setUp(self):
+        self.table_name = 'ddbtable'
+        self.group_name = 'group-name'
+        self.exec_arn = 'my:execution:arn'
+        stepfns.asg_helper = Mock()
+        stepfns.ec2_helper = Mock()
+        stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
+
+    def test_delete_item_is_called(self):
+        logger.debug('TestReleaseLock.test_delete_item_is_called')
+        stepfns.release_lock(self.table_name, self.group_name, self.exec_arn)
+        stepfns.ddb_lock_helper.delete_item.assert_called_once_with(self.table_name, self.group_name, self.exec_arn)
+
+
+class TestProtectedInstance(unittest.TestCase):
+
+    def setUp(self):
+        self.instance_id = 'i-abcd123'
+        self.table_name = 'ddbtable'
+        self.group_name = 'group-name'
+        self.exec_arn = 'my:execution:arn'
+        stepfns.asg_helper = Mock()
+        stepfns.ec2_helper = Mock()
+        stepfns.spot_helper = Mock()
+        stepfns.ddb_lock_helper = Mock()
+
+    def test_no_protected_instances(self):
+        logger.debug('TestProtectedInstance.test_no_protected_instances')
+        res = stepfns.protected_instance(self.group_name, self.instance_id, 0, self.table_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_not_called()
+        stepfns.asg_helper.not_enough_protected_instances.assert_not_called()
+        stepfns.asg_helper.protect_instance.assert_not_called()
+        stepfns.ddb_lock_helper.delete_item.assert_not_called()
+        self.assertIsNone(res)
+
+    def test_instance_should_be_protected(self):
+        logger.debug('TestProtectedInstance.test_instance_should_be_protected')
+        stepfns.asg_helper = Mock(**{
+            'not_enough_protected_instances.return_value': True
+        })
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': True
+        })
+        res = stepfns.protected_instance(self.group_name, self.instance_id, 1, self.table_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.asg_helper.not_enough_protected_instances.assert_called_once_with(self.group_name, 1)
+        stepfns.asg_helper.protect_instance.assert_called_once_with(self.group_name, self.instance_id)
+        stepfns.ddb_lock_helper.delete_item.assert_called_once()
+        self.assertIsNone(res)
+
+    def test_instance_should_not_be_protected(self):
+        logger.debug('TestProtectedInstance.test_instance_should_not_be_protected')
+        stepfns.asg_helper = Mock(**{
+            'not_enough_protected_instances.return_value': False
+        })
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': True
+        })
+        res = stepfns.protected_instance(self.group_name, self.instance_id, 1, self.table_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.asg_helper.not_enough_protected_instances.assert_called_once_with(self.group_name, 1)
+        stepfns.asg_helper.protect_instance.assert_not_called()
+        stepfns.ddb_lock_helper.delete_item.assert_called_once()
+        self.assertIsNone(res)
+
+    def test_could_not_acquire_lock(self):
+        logger.debug('TestProtectedInstance.test_could_not_acquire_lock')
+        stepfns.ddb_lock_helper = Mock(**{
+            'put_item.return_value': None,
+            'get_item.return_value': 'other:execution:arn',
+            'get_item.is_execution_running': True
+        })
+        res = stepfns.protected_instance(self.group_name, self.instance_id, 1, self.table_name, self.exec_arn)
+        stepfns.ddb_lock_helper.put_item.assert_called_once()
+        stepfns.asg_helper.not_enough_protected_instances.assert_not_called()
+        stepfns.asg_helper.protect_instance.assert_not_called()
+        stepfns.ddb_lock_helper.delete_item.assert_not_called()
+        self.assertEqual(res, strs.unable_to_acquire_lock)
 
 
 if __name__ == '__main__':

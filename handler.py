@@ -5,6 +5,7 @@ from os import environ
 
 import spoptimize.spot_warning as spot_warning
 import spoptimize.stepfns as stepfns
+import spoptimize.stepfn_strings as strs
 import spoptimize.util as util
 from spoptimize.logging_helper import logging
 
@@ -59,6 +60,16 @@ def handler(event, context):
 
     # Test New ASG Instance
     elif action == 'ondemand-instance-healthy':
+        # Generate execution ARN from state machine ARN
+        my_arn = environ['SPOPTIMIZE_SFN_ARN'].split(':')
+        my_arn[5] = 'execution'
+        my_arn.append(event['ondemand_instance_id'])
+        prot_inst_res = stepfns.protected_instance(
+            event['autoscaling_group']['AutoScalingGroupName'], event['ondemand_instance_id'],
+            event['min_protected_instances'], environ['SPOPTIMIZE_LOCK_TABLE'], ':'.join(my_arn)
+        )
+        if prot_inst_res == strs.unable_to_acquire_lock:
+            raise GroupLocked('Unable to acquire lock')
         retval = stepfns.asg_instance_state(event['autoscaling_group'], event['ondemand_instance_id'])
         if retval == 'Pending':
             raise InstancePending('{} is not online and/or healthy'.format(event['ondemand_instance_id']))

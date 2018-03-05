@@ -139,3 +139,31 @@ def attach_instance(asg_name, instance_id):
         raise
     logger.debug('Successfully attached {0} to {1}'.format(instance_id, asg_name))
     return strs.success
+
+
+def not_enough_protected_instances(asg_name, min_protected):
+    '''
+    Calls autoscaling.describe_auto_scaling_groups()
+    Returns True if the number of instances with ProtectedFromScaleIn=True is less than min_protected
+    '''
+    logger.debug('Querying for autoscaling group {}'.format(asg_name))
+    resp = autoscaling.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
+    if len(resp['AutoScalingGroups']) == 0:
+        logger.debug('Autoscaling group {} not found'.format(asg_name))
+        return False
+    asg_instances = resp['AutoScalingGroups'][0].get('Instances')
+    if not asg_instances:
+        logger.debug('No instances found')
+        return False
+    protected_instances = [x for x in asg_instances
+                           if x['ProtectedFromScaleIn'] and
+                           not re.match(r'^terminat', x.get('LifecycleState').lower()) and
+                           not re.match(r'^detach', x.get('LifecycleState').lower())]
+    logger.info('Protected instances for {0}: {1}'.format(
+        asg_name, [x['InstanceId'] for x in protected_instances]
+    ))
+    return len(protected_instances) < min_protected
+
+
+def protect_instance(asg_name, instance_id):
+    autoscaling.set_instance_protection(InstanceIds=[instance_id], AutoScalingGroupName=asg_name, ProtectedFromScaleIn=True)

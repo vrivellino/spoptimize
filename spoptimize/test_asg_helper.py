@@ -255,6 +255,78 @@ class TestAttachInstance(unittest.TestCase):
         self.assertEqual(asg_helper.attach_instance('group-name', 'i-abcd123XXX'), expected_res)
 
 
+class TestNotEnoughProtectedInstances(unittest.TestCase):
+
+    def setUp(self):
+        self.asg_name = mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]['AutoScalingGroupName']
+        self.min_protected = 1
+        self.mock_attrs = copy.deepcopy(mock_attrs)
+
+    def test_instance_needs_protection(self):
+        logger.debug('TestNotEnoughProtectedInstances.test_instance_needs_protection')
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        res = asg_helper.not_enough_protected_instances(self.asg_name, self.min_protected)
+        self.assertTrue(res)
+
+    def test_unknown_asg(self):
+        logger.debug('TestNotEnoughProtectedInstances.test_unknown_asg')
+        self.mock_attrs['describe_auto_scaling_groups.return_value'] = {'AutoScalingGroups': []}
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        res = asg_helper.not_enough_protected_instances(self.asg_name, self.min_protected)
+        self.assertFalse(res)
+
+    def test_no_instances(self):
+        logger.debug('TestNotEnoughProtectedInstances.test_no_instances')
+        self.mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]['Instances'] = []
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        res = asg_helper.not_enough_protected_instances(self.asg_name, self.min_protected)
+        self.assertFalse(res)
+
+    def test_protected_instances(self):
+        logger.debug('TestNotEnoughProtectedInstances.test_no_instances')
+        self.mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]['Instances'][0]['ProtectedFromScaleIn'] = True
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        res = asg_helper.not_enough_protected_instances(self.asg_name, self.min_protected)
+        self.assertFalse(res)
+
+    def test_protected_instance_is_terminating(self):
+        logger.debug('TestNotEnoughProtectedInstances.test_no_instances')
+        self.mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]['Instances'][0]['ProtectedFromScaleIn'] = True
+        self.mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]['Instances'][0]['LifecycleState'] = 'Terminating'
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        res = asg_helper.not_enough_protected_instances(self.asg_name, self.min_protected)
+        self.assertTrue(res)
+
+    def test_protected_instance_is_detaching(self):
+        logger.debug('TestNotEnoughProtectedInstances.test_no_instances')
+        self.mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]['Instances'][0]['ProtectedFromScaleIn'] = True
+        self.mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]['Instances'][0]['LifecycleState'] = 'Detaching'
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        res = asg_helper.not_enough_protected_instances(self.asg_name, self.min_protected)
+        self.assertTrue(res)
+
+    def test_min_protected_is_zero(self):
+        logger.debug('TestNotEnoughProtectedInstances.test_no_instances')
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        res = asg_helper.not_enough_protected_instances(self.asg_name, 0)
+        self.assertFalse(res)
+
+
+class TestProtectInstance(unittest.TestCase):
+
+    def setUp(self):
+        self.asg_name = mock_attrs['describe_auto_scaling_groups.return_value']['AutoScalingGroups'][0]['AutoScalingGroupName']
+        self.instance_id = 'i-abcd123'
+        self.mock_attrs = copy.deepcopy(mock_attrs)
+
+    def test_set_instance_protection_is_called(self):
+        logger.debug('ProtectInstance.test_set_instance_protection_')
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        asg_helper.protect_instance(self.asg_name, self.instance_id)
+        asg_helper.autoscaling.set_instance_protection.is_called_once_with(
+            InstanceIds=[self.instance_id], AutoScalingGroupName=self.asg_name, ProtectedFromScaleIn=True)
+
+
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
     setup_stream_handler()

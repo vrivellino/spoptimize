@@ -101,6 +101,11 @@ Newly launched instances will (eventually) be replaced by spot instances.
 
 Spoptimize's wait intervals may be overridden per AutoScaling via the use of tags.
 
+- `spoptimize:min_protected_instances`: Set a minimum number of on-demand instances for the autoscaling group.
+  **Defaults** to 0. This prevents Spoptimize from replacing all on-demand instances with spot instances.
+  NOTE: Spoptimzie leverages [Instance
+  Protection](https://docs.aws.amazon.com/autoscaling/ec2/userguide/as-instance-termination.html#instance-protection)
+  to achieve this.
 - `spoptimize:init_sleep_interval`: Initial wait interval after launch notification is received. Spoptimize
   won't do anything during this wait period. **Defaults** to approximately the group's Health Check Grace
   Period times the Desired Capacity plus 30-90s. This is directly correlated to the capacity to allow for
@@ -122,6 +127,9 @@ Set via CloudFormation:
         - Key: Name
           Value: !Ref AWS::StackName
           PropagateAtLaunch: true
+        - Key: spoptimize:min_protected_instances
+          Value: 1
+          PropagateAtLaunch: false
         - Key: spoptimize:init_sleep_interval
           Value: 45
           PropagateAtLaunch: false
