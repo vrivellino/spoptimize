@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-basedir=$(dirname "$0")/..
+basedir=$(dirname "$0")
 if [[ -f $basedir/.env ]]; then
     set -o allexport
     source "$basedir/.env"
