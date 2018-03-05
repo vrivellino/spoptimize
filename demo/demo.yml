@@ -185,7 +185,7 @@ Resources:
         WaitOnResourceSignals: true
     Properties:
       LaunchConfigurationName: !Ref LaunchConfig
-      DesiredCapacity: 1
+      DesiredCapacity: 2
       MinSize: 0
       MaxSize: 12
       VPCZoneIdentifier:
@@ -200,8 +200,11 @@ Resources:
         - !Ref ElbTargetGroup
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-ondemand"
+          Value: !Ref AWS::StackName
           PropagateAtLaunch: true
+        - Key: spoptimize:min_protected_instances
+          Value: 1
+          PropagateAtLaunch: false
         - Key: spoptimize:init_sleep_interval
           Value: 45
           PropagateAtLaunch: false
