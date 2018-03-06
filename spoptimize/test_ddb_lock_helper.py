@@ -77,6 +77,13 @@ class TestPutItem(unittest.TestCase):
         # should not raise an exception
         self.assertIsNone(res)
 
+    def test_put_item_other_exception(self):
+        logger.debug('TestPutItem.test_put_item_other_exception')
+        ddb_lock_helper.ddb = Mock(**{'put_item.side_effect': Exception('test')})
+        prev_exec_arn = 'prev:execution:arn'
+        with self.assertRaises(Exception):
+            ddb_lock_helper.put_item(self.table_name, self.group_name, self.exec_arn, self.ttl, prev_exec_arn)
+
 
 class TestGetItem(unittest.TestCase):
 
@@ -168,7 +175,7 @@ class TestIsExecutionRunning(unittest.TestCase):
 
     def test_execution_does_not_exist(self):
         logger.debug('TestIsExecutionRunning.test_execution_does_not_exist')
-        ddb_lock_helper.ddb = Mock(**{'describe_execution.side_effect': ClientError({
+        ddb_lock_helper.sfn = Mock(**{'describe_execution.side_effect': ClientError({
             'Error': {
                 'Code': 'ExecutionDoesNotExist',
                 'Message': "Execution Does Not Exist: '{}'".format(self.exec_arn)

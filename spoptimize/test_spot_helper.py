@@ -261,6 +261,13 @@ class TestRequestSpotInstance(unittest.TestCase):
         spot_req_dict = spot_helper.request_spot_instance(self.launch_config, self.az, self.subnet_id, self.client_token)
         self.assertDictEqual(spot_req_dict, expected_dict)
 
+    def test_other_exception_raises(self):
+        logger.debug('TestRequestSpotInstance.test_other_exception_raises')
+        self.mock_attrs['request_spot_instances.side_effect'] = Exception('test')
+        spot_helper.ec2 = Mock(**self.mock_attrs)
+        with self.assertRaises(Exception):
+            spot_helper.request_spot_instance(self.launch_config, self.az, self.subnet_id, self.client_token)
+
 
 class TestGetSpotRequestStatus(unittest.TestCase):
 
@@ -312,6 +319,13 @@ class TestGetSpotRequestStatus(unittest.TestCase):
         spot_helper.ec2 = Mock(**self.mock_attrs)
         res = spot_helper.get_spot_request_status(self.spot_req_id)
         self.assertEqual(res, expected_res)
+
+    def test_other_exception_raises(self):
+        logger.debug('TestGetSpotRequest_status.test_other_exception_raises')
+        self.mock_attrs['describe_spot_instance_requests.side_effect'] = Exception('test')
+        spot_helper.ec2 = Mock(**self.mock_attrs)
+        with self.assertRaises(Exception):
+            spot_helper.get_spot_request_status(self.spot_req_id)
 
 
 if __name__ == '__main__':
