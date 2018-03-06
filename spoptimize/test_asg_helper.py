@@ -254,6 +254,20 @@ class TestAttachInstance(unittest.TestCase):
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         self.assertEqual(asg_helper.attach_instance('group-name', 'i-abcd123XXX'), expected_res)
 
+    def test_other_clienterror_raises(self):
+        logger.debug('TestAttachInstance.test_other_clienterror_raises')
+        self.mock_attrs['attach_instances.side_effect'] = ClientError({
+            'Error': {
+                'Code': 'UnknownError',
+                'Message': 'Some other error',
+                'Type': 'Unknown'
+            }
+        }, 'AttachInstances')
+
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        with self.assertRaises(ClientError):
+            asg_helper.attach_instance('group-name', 'i-abcd123XXX')
+
     def test_other_exception_raises(self):
         logger.debug('TestAttachInstance.test_other_exception_raises')
         self.mock_attrs['attach_instances.side_effect'] = Exception('test')

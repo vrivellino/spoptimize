@@ -4,7 +4,7 @@ import datetime
 def json_dumps_converter(o):
     if isinstance(o, datetime.datetime):
         return o.isoformat()
-    raise TypeError("Unknown type")
+    raise TypeError("Unknown type")  # pragma: no cover
 
 
 def walk_dict_for_datetime(node):

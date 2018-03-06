@@ -42,6 +42,17 @@ class TestTerminateInstance(unittest.TestCase):
         ec2_helper.terminate_instance('i-abcd123')
         self.assertTrue(True)
 
+    def test_other_clienterror_raises(self):
+        logger.debug('TestTerminateInstance.test_other_clienterror_raises')
+        ec2_helper.ec2 = Mock(**{'terminate_instances.side_effect': ClientError({
+            'Error': {
+                'Code': 'UnknownError',
+                'Message': 'Some other error'
+            }
+        }, 'TerminateInstances')})
+        with self.assertRaises(ClientError):
+            ec2_helper.terminate_instance('i-abcd123')
+
     def test_other_exception_raises(self):
         logger.debug('TestTerminateInstance.test_other_exception_raises')
         ec2_helper.ec2 = Mock(**{'terminate_instances.side_effect': Exception('test')})
@@ -84,6 +95,17 @@ class TestTagInstance(unittest.TestCase):
         ec2_helper.ec2.create_tags.assert_called()
         self.assertFalse(res)
 
+    def test_other_clienterror_raises(self):
+        logger.debug('TestTagInstance.test_other_clienterror_raises')
+        ec2_helper.ec2 = Mock(**{'create_tags.side_effect': ClientError({
+            'Error': {
+                'Code': 'UnknownError',
+                'Message': 'Some other error'
+            }
+        }, 'CreateTags')})
+        with self.assertRaises(ClientError):
+            ec2_helper.tag_instance('i-9999999', 'i-abcd123', [])
+
     def test_other_exception_raises(self):
         logger.debug('TestTagInstance.test_other_exception_raises')
         ec2_helper.ec2 = Mock(**{'create_tags.side_effect': Exception('test')})
@@ -123,6 +145,17 @@ class TestIsInstanceRunning(unittest.TestCase):
         }, 'DescribeInstances')})
         res = ec2_helper.is_instance_running('i-abcd123')
         self.assertIsNone(res)
+
+    def test_other_clienterror_raises(self):
+        logger.debug('TestIsInstanceRunning.test_other_clienterror_raises')
+        ec2_helper.ec2 = Mock(**{'describe_instances.side_effect': ClientError({
+            'Error': {
+                'Code': 'UnknownError',
+                'Message': 'Some other error'
+            }
+        }, 'DescribeInstances')})
+        with self.assertRaises(Exception):
+            ec2_helper.is_instance_running('i-abcd123')
 
     def test_other_exception_raises(self):
         logger.debug('TestIsInstanceRunning.test_other_exception_raises')
@@ -165,6 +198,17 @@ class TestIsSpoptimizeInstance(unittest.TestCase):
         }, 'DescribeInstances')})
         res = ec2_helper.is_spoptimize_instance('i-abcd123')
         self.assertIsNone(res)
+
+    def test_other_clienterror_raises(self):
+        logger.debug('TestIsSpoptimizeInstance.test_other_clienterror_raises')
+        ec2_helper.ec2 = Mock(**{'describe_instances.side_effect': ClientError({
+            'Error': {
+                'Code': 'UnknownError',
+                'Message': 'Some other error'
+            }
+        }, 'DescribeInstances')})
+        with self.assertRaises(ClientError):
+            ec2_helper.is_spoptimize_instance('i-abcd123')
 
     def test_other_exception_raises(self):
         logger.debug('TestIsSpoptimizeInstance.test_other_exception_raises')

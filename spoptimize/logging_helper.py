@@ -4,7 +4,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def setup_stream_handler():
+def setup_stream_handler():  # pragma: no cover
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s: [%(filename)s:%(lineno)d %(funcName)s()] %(levelname)s - %(message)s')
