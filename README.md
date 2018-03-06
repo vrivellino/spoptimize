@@ -168,3 +168,7 @@ The Step Function execution manages the execution of Lambda functions which perf
 Screenshot of a successful execution:
 ![AWS Step Function execution](docs/images/readme-step-fn-sample-execution.png "Spoptimize step function execution")
 
+## Notes
+
+* Auto-Scaling groups that deploy EC2 instances to VPCs are tested. Auto-Scaling groups in EC2-Classic should
+  work, but is not tested.

@@ -30,6 +30,21 @@ def get_instance_profile_arn(instance_profile):
     return iam.get_instance_profile(InstanceProfileName=instance_profile)['InstanceProfile']['Arn']
 
 
+def security_group_id(secgrp):
+    '''
+    Returns the security group id of secgrp
+    Raises an exception if multiple group ids are detected
+
+    Used for EC2-Classic or Default-VPC Launch Configs
+    '''
+    if secgrp[:3] == 'sg-':
+        return secgrp
+    resp = ec2.describe_security_groups(GroupNames=[secgrp])
+    if len(resp['SecurityGroups']) > 1:
+        raise Exception('More than one security group detected for {}'.format(secgrp))
+    return resp['SecurityGroups'][0]['GroupId']
+
+
 def gen_launch_specification(launch_config, avail_zone, subnet_id):
     '''
     Uses an autoscaling launch configuration to generate an EC2 launch specification
@@ -38,12 +53,13 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
     logger.debug('Converting asg launch config to ec2 launch spec')
     # logger.debug('Launch Config: {}'.format(json.dumps(launch_config, indent=2, default=util.json_dumps_converter)))
     spot_launch_specification = {
-        'SubnetId': subnet_id,
         'Placement': {
             'AvailabilityZone': avail_zone,
             'Tenancy': launch_config.get('PlacementTenancy', 'default')
         }
     }
+    if subnet_id:
+        spot_launch_specification['SubnetId'] = subnet_id
     # common keys
     for k in ['AssociatePublicIpAddress', 'BlockDeviceMappings', 'EbsOptimized', 'ImageId',
               'InstanceType', 'KernelId', 'KeyName', 'RamdiskId', 'UserData']:
@@ -55,8 +71,7 @@ def gen_launch_specification(launch_config, avail_zone, subnet_id):
             'Arn': get_instance_profile_arn(launch_config['IamInstanceProfile'])
         }
     if launch_config.get('SecurityGroups'):
-        # Assume VPC security group ids
-        spot_launch_specification['SecurityGroupIds'] = launch_config['SecurityGroups']
+        spot_launch_specification['SecurityGroupIds'] = [security_group_id(x) for x in launch_config['SecurityGroups']]
     if launch_config.get('InstanceMonitoring'):
         spot_launch_specification['Monitoring'] = {
             'Enabled': launch_config['InstanceMonitoring'].get('Enabled', False)

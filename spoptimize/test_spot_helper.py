@@ -101,6 +101,50 @@ class TestGetInstanceProfileArn(unittest.TestCase):
             spot_helper.get_instance_profile_arn('test')
 
 
+class TestSecurityGroupId(unittest.TestCase):
+
+    def setUp(self):
+        spot_helper.ec2 = Mock()
+        self.mock_attrs = copy.deepcopy(mock_attrs)
+        self.group_name = self.mock_attrs['describe_security_groups.return_value']['SecurityGroups'][0]['GroupName']
+        self.group_id = self.mock_attrs['describe_security_groups.return_value']['SecurityGroups'][0]['GroupId']
+
+    def test_valid_security_group(self):
+        logger.debug('TestSecurityGroupId.test_valid_security_group')
+        spot_helper.ec2 = Mock(**self.mock_attrs)
+        res = spot_helper.security_group_id(self.group_name)
+        spot_helper.ec2.describe_security_groups.assert_called_once_with(GroupNames=[self.group_name])
+        self.assertEqual(res, self.group_id)
+
+    def test_pass_thru(self):
+        logger.debug('TestSecurityGroupId.pass_thru')
+        spot_helper.ec2 = Mock(**self.mock_attrs)
+        res = spot_helper.security_group_id(self.group_id)
+        spot_helper.ec2.describe_security_groups.assert_not_called()
+        self.assertEqual(res, self.group_id)
+
+    def test_invalid_security_group(self):
+        logger.debug('TestSecurityGroupId.test_invalid_security_group')
+        spot_helper.ec2 = Mock(**{'describe_security_groups.side_effect': ClientError({
+            'Error': {
+                'Code': 'InvalidGroup.NotFound',
+                'Message': "The security group 'unknown' does not exist in default VPC 'vpc-aaaaaaaa'"
+            }
+        }, 'DescribeSecurityGroups')})
+        with self.assertRaises(ClientError):
+            spot_helper.security_group_id('unknown')
+
+    def test_multiple_groups(self):
+        logger.debug('TestSecurityGroupId.test_invalid_security_group')
+        second_group = copy.deepcopy(self.mock_attrs['describe_security_groups.return_value']['SecurityGroups'][0])
+        second_group['GroupName'] = 'test'
+        second_group['GroupId'] = 'sg-xxxxxxxx'
+        self.mock_attrs['describe_security_groups.return_value']['SecurityGroups'].append(second_group)
+        spot_helper.ec2 = Mock(**self.mock_attrs)
+        with self.assertRaises(Exception):
+            spot_helper.security_group_id(self.group_name)
+
+
 class TestGenLaunchSpecification(unittest.TestCase):
 
     def setUp(self):
