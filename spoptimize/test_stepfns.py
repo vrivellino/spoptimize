@@ -93,12 +93,26 @@ class TestInitMachineState(unittest.TestCase):
         stepfns.asg_helper = Mock(**{
             'describe_asg.return_value': self.asg_dict
         })
-        for required_key in ['EC2InstanceId', 'AutoScalingGroupName', 'Details']:
+        for required_key in ['EC2InstanceId', 'AutoScalingGroupName', 'Details', 'Description']:
             bad_notification = copy.deepcopy(launch_notification)
             del(bad_notification[required_key])
             (state_machine_dict, msg) = stepfns.init_machine_state(bad_notification)
             self.assertDictEqual(state_machine_dict, {})
             self.assertTrue(msg)
+
+    def test_attachment_notification(self):
+        logger.debug('TestInitMachineState.test_attachment_notification')
+        stepfns.asg_helper = Mock(**{
+            'describe_asg.return_value': self.asg_dict
+        })
+        attach_notification = copy.deepcopy(launch_notification)
+        attach_notification['Description'] = 'Attaching an existing EC2 instance: {}'.format(attach_notification['EC2InstanceId'])
+        attach_notification['Cause'] = 'At 2018-03-05T22:04:49Z an instance was added in response to user request. Keeping the capacity at the new 1.'
+        # launch notifications of attached instances do not include the Subnet ID
+        del(attach_notification['Details']['Subnet ID'])
+        (state_machine_dict, msg) = stepfns.init_machine_state(attach_notification)
+        self.assertDictEqual(state_machine_dict, {})
+        self.assertTrue(msg)
 
     def test_missing_az(self):
         logger.debug('TestInitMachineState.test_malformed_notification')
