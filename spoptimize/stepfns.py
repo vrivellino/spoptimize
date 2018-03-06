@@ -45,11 +45,16 @@ def init_machine_state(sns_message):
         return ({}, 'Unable to extract AutoScalingGroupName from SNS message')
     if not sns_message.get('Details'):
         return ({}, 'Unable to extract Details from SNS message')
+    if not sns_message.get('Description'):
+        return ({}, 'Unable to extract Description from SNS message')
     instance_id = sns_message.get('EC2InstanceId')
     group_name = sns_message.get('AutoScalingGroupName')
     subnet_details = sns_message.get('Details', {})
+    desc = sns_message.get('Description')
     if 'Availability Zone' not in subnet_details:
         return ({}, 'Unable to extract Subnet Details from SNS message')
+    if desc[:6] == 'Attach':
+        return ({}, 'Launch notification for attached EC2 instance: {}'.format(desc))
     logger.info('Processing launch notification for {0}: {1} {2}/{3}'.format(
         group_name, instance_id, subnet_details['Availability Zone'], subnet_details.get('Subnet ID')))
     msg = None

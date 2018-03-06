@@ -41,7 +41,7 @@ def handler(event, context):
         for record in event['Records']:
             if 'Sns' in record and 'Message' in record['Sns']:
                 (init_state, msg) = stepfns.init_machine_state(json.loads(record['Sns']['Message']))
-                if init_state['autoscaling_group']:
+                if init_state.get('autoscaling_group'):
                     logger.debug('Starting execution of {0} with name {1}'.format(state_machine_arn, init_state['ondemand_instance_id']))
                     logger.debug('Input: {}'.format(json.dumps(init_state, indent=2, default=util.json_dumps_converter)))
                     # NOTE: execution ARN is used for locks. if name changes, update lock acquisition & release
