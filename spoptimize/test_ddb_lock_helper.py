@@ -77,6 +77,19 @@ class TestPutItem(unittest.TestCase):
         # should not raise an exception
         self.assertIsNone(res)
 
+    def test_put_item_clienterror_exception(self):
+        logger.debug('TestPutItem.test_put_item_clienterror_exception')
+        ddb_lock_helper.ddb = Mock(**{'put_item.side_effect': ClientError({
+            'Error': {
+                'Code': 'UnknownError',
+                'Message': 'Some other error',
+                'Type': 'Unknown'
+            }
+        }, 'PutItem')})
+        prev_exec_arn = 'prev:execution:arn'
+        with self.assertRaises(ClientError):
+            ddb_lock_helper.put_item(self.table_name, self.group_name, self.exec_arn, self.ttl, prev_exec_arn)
+
     def test_put_item_other_exception(self):
         logger.debug('TestPutItem.test_put_item_other_exception')
         ddb_lock_helper.ddb = Mock(**{'put_item.side_effect': Exception('test')})
@@ -183,6 +196,24 @@ class TestIsExecutionRunning(unittest.TestCase):
         }, 'DescribeExecution')})
         res = ddb_lock_helper.is_execution_running(self.exec_arn)
         self.assertFalse(res)
+
+    def test_client_error_raises(self):
+        logger.debug('TestIsExecutionRunning.test_client_error_raises')
+        ddb_lock_helper.sfn = Mock(**{'describe_execution.side_effect': ClientError({
+            'Error': {
+                'Code': 'UnknownError',
+                'Message': 'Some other error',
+                'Type': 'Unknown'
+            }
+        }, 'DescribeExecution')})
+        with self.assertRaises(ClientError):
+            ddb_lock_helper.is_execution_running(self.exec_arn)
+
+    def test_other_exception_raises(self):
+        logger.debug('TestIsExecutionRunning.test_other_exception_raises')
+        ddb_lock_helper.sfn = Mock(**{'describe_execution.side_effect': Exception('test')})
+        with self.assertRaises(Exception):
+            ddb_lock_helper.is_execution_running(self.exec_arn)
 
 
 if __name__ == '__main__':
