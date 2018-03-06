@@ -254,6 +254,13 @@ class TestAttachInstance(unittest.TestCase):
         asg_helper.autoscaling = Mock(**self.mock_attrs)
         self.assertEqual(asg_helper.attach_instance('group-name', 'i-abcd123XXX'), expected_res)
 
+    def test_other_exception_raises(self):
+        logger.debug('TestAttachInstance.test_other_exception_raises')
+        self.mock_attrs['attach_instances.side_effect'] = Exception('test')
+        asg_helper.autoscaling = Mock(**self.mock_attrs)
+        with self.assertRaises(Exception):
+            asg_helper.attach_instance('group-name', 'i-abcd123XXX')
+
 
 class TestNotEnoughProtectedInstances(unittest.TestCase):
 

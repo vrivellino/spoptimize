@@ -100,6 +100,17 @@ class TestInitMachineState(unittest.TestCase):
             self.assertDictEqual(state_machine_dict, {})
             self.assertTrue(msg)
 
+    def test_missing_az(self):
+        logger.debug('TestInitMachineState.test_malformed_notification')
+        stepfns.asg_helper = Mock(**{
+            'describe_asg.return_value': self.asg_dict
+        })
+        bad_notification = copy.deepcopy(launch_notification)
+        del(bad_notification['Details']['Availability Zone'])
+        (state_machine_dict, msg) = stepfns.init_machine_state(bad_notification)
+        self.assertDictEqual(state_machine_dict, {})
+        self.assertTrue(msg)
+
     def test_fixed_asg(self):
         logger.debug('TestInitMachineState.test_fixed_asg')
         self.asg_dict['MinSize'] = 1

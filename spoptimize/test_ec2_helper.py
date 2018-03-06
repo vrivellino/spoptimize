@@ -42,6 +42,12 @@ class TestTerminateInstance(unittest.TestCase):
         ec2_helper.terminate_instance('i-abcd123')
         self.assertTrue(True)
 
+    def test_other_exception_raises(self):
+        logger.debug('TestTerminateInstance.test_other_exception_raises')
+        ec2_helper.ec2 = Mock(**{'terminate_instances.side_effect': Exception('test')})
+        with self.assertRaises(Exception):
+            ec2_helper.terminate_instance('i-abcd123')
+
 
 class TestTagInstance(unittest.TestCase):
 
@@ -78,6 +84,12 @@ class TestTagInstance(unittest.TestCase):
         ec2_helper.ec2.create_tags.assert_called()
         self.assertFalse(res)
 
+    def test_other_exception_raises(self):
+        logger.debug('TestTagInstance.test_other_exception_raises')
+        ec2_helper.ec2 = Mock(**{'create_tags.side_effect': Exception('test')})
+        with self.assertRaises(Exception):
+            ec2_helper.tag_instance('i-9999999', 'i-abcd123', [])
+
 
 class TestIsInstanceRunning(unittest.TestCase):
 
@@ -111,6 +123,12 @@ class TestIsInstanceRunning(unittest.TestCase):
         }, 'DescribeInstances')})
         res = ec2_helper.is_instance_running('i-abcd123')
         self.assertIsNone(res)
+
+    def test_other_exception_raises(self):
+        logger.debug('TestIsInstanceRunning.test_other_exception_raises')
+        ec2_helper.ec2 = Mock(**{'describe_instances.side_effect': Exception('test')})
+        with self.assertRaises(Exception):
+            ec2_helper.is_instance_running('i-abcd123')
 
 
 class TestIsSpoptimizeInstance(unittest.TestCase):
@@ -147,6 +165,12 @@ class TestIsSpoptimizeInstance(unittest.TestCase):
         }, 'DescribeInstances')})
         res = ec2_helper.is_spoptimize_instance('i-abcd123')
         self.assertIsNone(res)
+
+    def test_other_exception_raises(self):
+        logger.debug('TestIsSpoptimizeInstance.test_other_exception_raises')
+        ec2_helper.ec2 = Mock(**{'describe_instances.side_effect': Exception('test')})
+        with self.assertRaises(Exception):
+            ec2_helper.is_spoptimize_instance('i-abcd123')
 
 
 if __name__ == '__main__':
