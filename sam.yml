@@ -6,9 +6,13 @@ Transform: AWS::Serverless-2016-10-31
 
 Parameters:
   StackBasename:
-    Description: Base name of Spoptimize stacks
+    Description: Base name of Spoptimize resources
     Type: String
     Default: spoptimize
+  RolePath:
+    Description: Path of IAM resources
+    Type: String
+    Default: /
   SnsTopicName:
     Description: Name of SNS topic that publishes autoscaling launch notifications
     Type: String
@@ -65,7 +69,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-start-state-machine"
       Description: Processes autoscaling launch notifications via SNS and starts Spoptimize Step Functions
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -81,7 +85,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-spot-warning"
       Description: Processes EC2 spot instance warnings and terminates via autoscaling API
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Handler: handler.spot_warning_handler
       Events:
@@ -97,7 +101,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-ondemand-instance-healthy"
       Description: Checks health and status of launched autoscaling instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -108,7 +112,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-increment-count"
       Description: Increment iteration counter
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -119,7 +123,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-request-spot"
       Description: Requests a spot instance to replace launched autoscaling instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -130,7 +134,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-check-spot"
       Description: Checks the status of spot instance request
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -141,7 +145,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-term-spot-instance"
       Description: Terminates spot instance (if online) after autoscaling group disappears
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -152,7 +156,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-acquire-lock"
       Description: Acquires lock for autoscaling group
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -163,7 +167,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-release-lock"
       Description: Releases lock for autoscaling group
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -174,7 +178,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-attach-spot"
       Description: Attaches spot instance to autoscaling group
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -185,7 +189,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-spot-instance-healthy"
       Description: Checks health and status of attached spot instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -195,7 +199,7 @@ Resources:
     Type: AWS::StepFunctions::StateMachine
     Properties:
       StateMachineName: !Sub "${StackBasename}-spot-requestor"
-      RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-state-machine"
+      RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-state-machine"
       DefinitionString:
         Fn::Sub: |-
           {

@@ -1,0 +1,60 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Parent stack for Spoptimize
+
+Parameters:
+  StackBasename:
+    Description: Base name of Spoptimize resources
+    Type: String
+    Default: spoptimize
+  RolePath:
+    Description: Path of IAM resources
+    Type: String
+    Default: /
+  SnsTopicName:
+    Description: Name of SNS topic that publishes autoscaling launch notifications
+    Type: String
+    Default: spoptimize-init
+  DebugLambdas:
+    Description: Enable debug logging of lambda functions
+    Type: String
+    Default: "false"
+    AllowedValues: ["false", "true"]
+  MaximumIterationCount:
+    Description: Maximum number of iterations
+    Type: Number
+    Default: 48
+  AlarmTopicName:
+    Description: Name of SNS topic for CloudWatch Alarms
+    Type: String
+    Default: ""
+  BaseS3Url:
+    Description: Base URL of templates in S3
+    Type: String
+  SpoptimizeVersion:
+    Description: Version of Spoptimize to deploy
+    Type: String
+    Default: "v2.0.0"
+
+Resources:
+
+  Iam:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${BaseS3Url}/${SpoptimizeVersion}/iam-global.yml"
+      Parameters:
+        StackBasename: !Ref StackBasename
+        RolePath: !Ref RolePath
+
+  StepFn:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${BaseS3Url}/${SpoptimizeVersion}/sam_output.yml"
+      Parameters:
+        StackBasename: !Ref StackBasename
+        RolePath: !Ref RolePath
+        SnsTopicName: !Ref SnsTopicName
+        DebugLambdas: !Ref DebugLambdas
+        MaximumIterationCount: !Ref MaximumIterationCount
+        AlarmTopicName: !Ref AlarmTopicName
