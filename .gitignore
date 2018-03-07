@@ -102,3 +102,4 @@ ENV/
 
 # Coveralls config is generated on the fly
 .coveralls.yml
+/sam-all.yml

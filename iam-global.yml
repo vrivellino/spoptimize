@@ -5,7 +5,7 @@ Description: IAM Resources for Spoptimize
 
 Parameters:
   StackBasename:
-    Description: Base name of Spoptimize stacks
+    Description: Base name of Spoptimize resources
     Type: String
     Default: spoptimize
   RolePath:

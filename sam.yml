@@ -6,13 +6,17 @@ Transform: AWS::Serverless-2016-10-31
 
 Parameters:
   StackBasename:
-    Description: Base name of Spoptimize stacks
+    Description: Base name of Spoptimize resources
     Type: String
     Default: spoptimize
-  SnsTopicName:
-    Description: Name of SNS topic that publishes autoscaling launch notifications
+  RolePath:
+    Description: Path of IAM resources
     Type: String
-    Default: spoptimize-init
+    Default: /
+  SnsTopicNameOverride:
+    Description: Name of existing SNS topic that publishes autoscaling launch notifications
+    Type: String
+    Default: default
   DebugLambdas:
     Description: Enable debug logging of lambda functions
     Type: String
@@ -26,9 +30,53 @@ Parameters:
     Description: Name of SNS topic for CloudWatch Alarms
     Type: String
     Default: ""
+  IamTemplateUrl:
+    Description: Base URL of IAM template in S3 (replace token with URL to deploy all resources)
+    Type: String
+    Default: ''  # URL_TOKEN
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: Basic Configuration
+        Parameters:
+          - StackBasename
+          - AlarmTopicName
+          - DebugLambdas
+      -
+        Label:
+          default: Advanced Configuration
+        Parameters:
+          - SnsTopicNameOverride
+          - RolePath
+          - MaximumIterationCount
+          - IamTemplateUrl
+    ParameterLabels:
+      StackBaseName:
+        default: Name prefix for spoptimize resources
+      AlarmTopicName:
+        default: Topic Name for Alarms
+      SnsTopicNameOverride:
+        default: Override for Launch Notification Topic
+      DebugLambdas:
+        default: Debug Lambdas?
+      RolePath:
+        default: Path override for IAM resources
+      MaximumIterationCount:
+        default: Max iterations after failed spot requests
+      IamTemplateUrl:
+        default: Humans probably shouldn't change this
 
 Conditions:
-  NoAlarmNotifications: !Equals [!Ref AlarmTopicName, ""]
+  NoAlarmNotifications: !Equals [!Ref AlarmTopicName, '']
+  DefaultSnsTopic: !Equals [!Ref SnsTopicNameOverride, 'default']
+  CreateIamStack: !Not [!Equals [!Ref IamTemplateUrl, '']]
+  CreateLaunchTopic: !And [
+    !Equals [!Ref SnsTopicNameOverride, 'default'],
+    !Not [!Equals [!Ref IamTemplateUrl, '']]
+  ]
 
 Globals:
   Function:
@@ -43,6 +91,23 @@ Globals:
         SPOPTIMIZE_SFN_ARN: !Ref SpotRequestor
 
 Resources:
+
+  LaunchTopic:
+    Type: AWS::SNS::Topic
+    Condition: CreateLaunchTopic
+    Properties:
+      DisplayName: !Sub "autoscaling launch notifications - ${AWS::StackName}"
+      TopicName: !Sub "${StackBasename}-init"
+
+  Iam:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateIamStack
+    Properties:
+      TemplateURL: !Ref IamTemplateUrl
+      Parameters:
+        StackBasename: !Ref StackBasename
+        RolePath: !Ref RolePath
+
   LockTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -65,7 +130,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-start-state-machine"
       Description: Processes autoscaling launch notifications via SNS and starts Spoptimize Step Functions
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -74,14 +143,22 @@ Resources:
         AsgLaunchNotifications:
           Type: SNS
           Properties:
-            Topic: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SnsTopicName}"
+            Topic: !If [
+              DefaultSnsTopic,
+              !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${StackBasename}-init",
+              !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SnsTopicNameOverride}"
+            ]
 
   SpotWarningFn:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${StackBasename}-spot-warning"
       Description: Processes EC2 spot instance warnings and terminates via autoscaling API
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Handler: handler.spot_warning_handler
       Events:
@@ -97,7 +174,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-ondemand-instance-healthy"
       Description: Checks health and status of launched autoscaling instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -108,7 +189,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-increment-count"
       Description: Increment iteration counter
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -119,7 +204,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-request-spot"
       Description: Requests a spot instance to replace launched autoscaling instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -130,7 +219,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-check-spot"
       Description: Checks the status of spot instance request
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -141,7 +234,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-term-spot-instance"
       Description: Terminates spot instance (if online) after autoscaling group disappears
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -152,7 +249,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-acquire-lock"
       Description: Acquires lock for autoscaling group
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -163,7 +264,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-release-lock"
       Description: Releases lock for autoscaling group
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -174,7 +279,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-attach-spot"
       Description: Attaches spot instance to autoscaling group
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -185,7 +294,11 @@ Resources:
     Properties:
       FunctionName: !Sub "${StackBasename}-spot-instance-healthy"
       Description: Checks health and status of attached spot instance
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
+      Role: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.LambdaRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-lambda-role"
+      ]
       CodeUri: ./target/lambda-pkg.zip
       Environment:
         Variables:
@@ -195,7 +308,11 @@ Resources:
     Type: AWS::StepFunctions::StateMachine
     Properties:
       StateMachineName: !Sub "${StackBasename}-spot-requestor"
-      RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-state-machine"
+      RoleArn: !If [
+        CreateIamStack,
+        !GetAtt [Iam, Outputs.StateMachineRoleArn],
+        !Sub "arn:aws:iam::${AWS::AccountId}:role${RolePath}${StackBasename}-iam-global-state-machine"
+      ]
       DefinitionString:
         Fn::Sub: |-
           {
