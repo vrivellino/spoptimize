@@ -12,10 +12,6 @@ Parameters:
     Description: Path of IAM resources
     Type: String
     Default: /
-  SnsTopicName:
-    Description: Name of SNS topic that publishes autoscaling launch notifications
-    Type: String
-    Default: spoptimize-init
   DebugLambdas:
     Description: Enable debug logging of lambda functions
     Type: String
@@ -35,7 +31,7 @@ Parameters:
   SpoptimizeVersion:
     Description: Version of Spoptimize to deploy
     Type: String
-    Default: "v2.0.0"
+    Default: "{{VERSION_TOKEN}}"
 
 Resources:
 
@@ -54,7 +50,7 @@ Resources:
       Parameters:
         StackBasename: !Ref StackBasename
         RolePath: !Ref RolePath
-        SnsTopicName: !Ref SnsTopicName
+        SnsTopicName: !Sub "${StackBasename}-init"
         DebugLambdas: !Ref DebugLambdas
         MaximumIterationCount: !Ref MaximumIterationCount
         AlarmTopicName: !Ref AlarmTopicName
