@@ -46,7 +46,7 @@ Resources:
   LockTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "${AWS::StackName}-autoscaling-group-locks"
+      TableName: !Sub "${StackBasename}-autoscaling-group-locks"
       AttributeDefinitions:
         - AttributeName: group_name
           AttributeType: S
@@ -63,7 +63,7 @@ Resources:
   StartStateMachineFn:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-start-state-machine"
+      FunctionName: !Sub "${StackBasename}-start-state-machine"
       Description: Processes autoscaling launch notifications via SNS and starts Spoptimize Step Functions
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -79,7 +79,7 @@ Resources:
   SpotWarningFn:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-spot-warning"
+      FunctionName: !Sub "${StackBasename}-spot-warning"
       Description: Processes EC2 spot instance warnings and terminates via autoscaling API
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -95,7 +95,7 @@ Resources:
   TestNewAsgInstanceFn:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-ondemand-instance-healthy"
+      FunctionName: !Sub "${StackBasename}-ondemand-instance-healthy"
       Description: Checks health and status of launched autoscaling instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -106,7 +106,7 @@ Resources:
   IncrementCountFn:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-increment-count"
+      FunctionName: !Sub "${StackBasename}-increment-count"
       Description: Increment iteration counter
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -117,7 +117,7 @@ Resources:
   RequestSpotInstanceFn:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-request-spot"
+      FunctionName: !Sub "${StackBasename}-request-spot"
       Description: Requests a spot instance to replace launched autoscaling instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -128,7 +128,7 @@ Resources:
   CheckSpotRequestFn:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-check-spot"
+      FunctionName: !Sub "${StackBasename}-check-spot"
       Description: Checks the status of spot instance request
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -139,7 +139,7 @@ Resources:
   AutoScalingGroupDisappearedFn:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-term-spot-instance"
+      FunctionName: !Sub "${StackBasename}-term-spot-instance"
       Description: Terminates spot instance (if online) after autoscaling group disappears
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -150,7 +150,7 @@ Resources:
   AcquireAutoScalingGroupLock:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-acquire-lock"
+      FunctionName: !Sub "${StackBasename}-acquire-lock"
       Description: Acquires lock for autoscaling group
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -161,7 +161,7 @@ Resources:
   ReleaseAutoScalingGroupLock:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-release-lock"
+      FunctionName: !Sub "${StackBasename}-release-lock"
       Description: Releases lock for autoscaling group
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -172,7 +172,7 @@ Resources:
   AttachSpot:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-attach-spot"
+      FunctionName: !Sub "${StackBasename}-attach-spot"
       Description: Attaches spot instance to autoscaling group
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -183,7 +183,7 @@ Resources:
   TestAttachedInstance:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-spot-instance-healthy"
+      FunctionName: !Sub "${StackBasename}-spot-instance-healthy"
       Description: Checks health and status of attached spot instance
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-lambda-role"
       CodeUri: ./target/lambda-pkg.zip
@@ -194,7 +194,7 @@ Resources:
   SpotRequestor:
     Type: AWS::StepFunctions::StateMachine
     Properties:
-      StateMachineName: !Sub "${AWS::StackName}-spot-requestor"
+      StateMachineName: !Sub "${StackBasename}-spot-requestor"
       RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackBasename}-iam-global-state-machine"
       DefinitionString:
         Fn::Sub: |-

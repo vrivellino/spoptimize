@@ -31,7 +31,7 @@ Resources:
   StateMachineRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${AWS::StackName}-state-machine"
+      RoleName: !Sub "${StackBasename}-iam-global-state-machine"
       Path: !Ref RolePath
       AssumeRolePolicyDocument:
         Statement:
