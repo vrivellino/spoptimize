@@ -4,7 +4,7 @@ import boto3
 import os
 
 here = os.path.dirname(os.path.realpath(__file__))
-template_list = ['iam-global.yml', 'sam.yml']
+template_list = ['principal.yml', 'iam-global.yml', 'sam.yml']
 cfn = boto3.client('cloudformation')
 
 

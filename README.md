@@ -19,6 +19,27 @@ ingenious, but I thought it might be fun to build a similar system that was even
 had never used [AWS Step Functions](https://aws.amazon.com/step-functions/) before, so I took the opportunity
 to build my own tool using Step Functions whose executions were initiated by [AutoScaling Launch Notifications](https://docs.aws.amazon.com/autoscaling/ec2/userguide/ASGettingNotifications.html).
 
+## How it works
+
+Each launch notification is processed by a Lambda, which in turns begins an execution of Spoptimize's Step
+Funcions.
+
+The Step Function execution manages the execution of Lambda functions which perform these actions:
+1. Wait following new instance launch. (See `spoptimize:init_sleep_interval` above)
+1. Verify that the new on-demand instance is healthy according to autoscaling.
+1. Request Spot Instance using specifications defined in autoscaling group's launch configuration.
+1. Wait for Spot Request to be fulfilled and for spot instance to be online. (See
+   `spoptimize:spot_req_sleep_interval` above)
+1. Acquire an exclusive lock on the autoscaling group. This step prevents multiple executions from attaching &
+   terminating instances simultaneously.
+1. Attach spot instance to autoscaling group and terminate original on-demand instance.
+1. Wait for spot instance to be healthy according to autoscaling. (See `spoptimize:spot_attach_sleep_interval`
+   above)
+1. Verify health of spot instance and release exclusive lock.
+
+Screenshot of a successful execution:
+![AWS Step Function execution](docs/images/readme-step-fn-sample-execution.png "Spoptimize step function execution")
+
 ## Deploying
 
 ### Prerequisites
@@ -43,6 +64,10 @@ Here's a breakdown the privileges required for deployment. Deployment requires t
 Note: many of the names and prefixes can be overridden via setting environment variables prior to running the
 deployment script.
 
+### Quick Launch
+
+[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=spoptimize&templateURL=https://s3.amazonaws.com/spoptimize-artifacts/public/latest/spoptimize.yml)
+
 ### Deployment Script
 
 Deploy both the IAM stack and the Step Functions & Lambdas:
@@ -57,7 +82,7 @@ Deploy just the Step Functions and Lambdas:
 
     $ ./deploy.sh cfn
 
-### AutoScaling Configuration
+## Configuration
 
 After Spoptimize is deployed, configure your autoscaling groups to send launch notifications to the
 `spoptimize-init` SNS topic.
@@ -146,27 +171,6 @@ Set via CloudFormation:
 
 And in the console:
 ![EC2 AutoScaling console showing tags tab](docs/images/readme-asg-example-tags.png "Autoscaling group tags")
-
-## How it works
-
-Each launch notification is processed by a Lambda, which in turns begins an execution of Spoptimize's Step
-Funcions.
-
-The Step Function execution manages the execution of Lambda functions which perform these actions:
-1. Wait following new instance launch. (See `spoptimize:init_sleep_interval` above)
-1. Verify that the new on-demand instance is healthy according to autoscaling.
-1. Request Spot Instance using specifications defined in autoscaling group's launch configuration.
-1. Wait for Spot Request to be fulfilled and for spot instance to be online. (See
-   `spoptimize:spot_req_sleep_interval` above)
-1. Acquire an exclusive lock on the autoscaling group. This step prevents multiple executions from attaching &
-   terminating instances simultaneously.
-1. Attach spot instance to autoscaling group and terminate original on-demand instance.
-1. Wait for spot instance to be healthy according to autoscaling. (See `spoptimize:spot_attach_sleep_interval`
-   above)
-1. Verify health of spot instance and release exclusive lock.
-
-Screenshot of a successful execution:
-![AWS Step Function execution](docs/images/readme-step-fn-sample-execution.png "Spoptimize step function execution")
 
 ## Notes
 
