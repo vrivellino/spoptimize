@@ -11,7 +11,7 @@ stack_basename=${STACK_BASENAME:-spoptimize}
 aws_account_id=$(aws sts get-caller-identity --query Account --output=text)
 s3_bucket=${S3_BUCKET:-spoptimize-artifacts-$aws_account_id}
 s3_prefix=${S3_PREFIX:-spoptimize}
-sns_topic_name=${ASG_SNS_TOPIC_NAME:-spoptimize-init}
+sns_topic_name=${ASG_SNS_TOPIC_NAME:-$stack_basename-init}
 sns_alarm_topic_name=$SNS_ALARM_TOPIC_NAME
 lambda_debug_log=${SPOPTIMIZE_LAMBDA_DEBUG_LOG:-false}
 cfn_iam_role_arn_arg=''
@@ -108,7 +108,9 @@ if [[ -n $do_sam ]]; then
     aws sns create-topic --name "$sns_topic_name" --output=text --query TopicArn
     echo
     echo 'Deploying Spoptimize ...'
-    sns_params="SnsTopicName=$sns_topic_name"
+    if [[ $sns_topic_name != $stack_basename-init ]]; then
+        sns_params="SnsTopicNameOverride=$sns_topic_name"
+    fi
     if [[ -n $sns_alarm_topic_name ]]; then
         sns_params="$sns_params AlarmTopicName=$sns_alarm_topic_name"
     fi
