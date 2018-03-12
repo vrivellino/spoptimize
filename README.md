@@ -1,7 +1,7 @@
 # **SPO**_P_**T**_IMIZE_
 
 [![Build Status](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiMVVCemdaZmVCa3BMTDFJK0VaM0xaWVdnTWR0VjBRTWVsQWdhQ0dINGVvWWZ1Q0lhVE95MG5FVzRsY2MwU2JqY2dYbzNkY1hJRTJrVy9XNGVqbGdMVUFVPSIsIml2UGFyYW1ldGVyU3BlYyI6IkJ0aXVhRjhwMVl6S2w2THUiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master)](https://console.aws.amazon.com/codebuild/home?region=us-east-1#/projects/spoptimize/view)
-[![Coverage Status](https://coveralls.io/repos/github/vrivellino/spoptimize/badge.svg?branch=HEAD)](https://coveralls.io/github/vrivellino/spoptimize)
+[![Coverage Status](https://coveralls.io/repos/github/vrivellino/spoptimize/badge.svg)](https://coveralls.io/github/vrivellino/spoptimize)
 
 Spoptimize is a tool that automates use of [Amazon EC2 spot instances](https://aws.amazon.com/ec2/spot/) in
 your [AutoScaling Groups](https://aws.amazon.com/ec2/autoscaling/).
