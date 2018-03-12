@@ -35,6 +35,10 @@ def gh_pull_request(pr_num):
     return change_log_entry
 
 
+def produce_iam_diff(cur_version_str):
+    return subprocess.check_output(['git', 'diff', '{}...HEAD'.format(cur_version_str.split('-')[0]), 'iam-global.yml'])
+
+
 def update_changelog(lines, cur_version_str, new_version_str):
     with open(os.path.join(here, '..', 'CHANGELOG.md')) as f:
         with open(os.path.join(here, '..', 'CHANGELOG-new.md'), 'w') as w:
@@ -44,7 +48,9 @@ def update_changelog(lines, cur_version_str, new_version_str):
                     w.write('## {}\n'.format(new_version_str))
                     for line_new in lines:
                         w.write(line_new)
-                    w.write('\n')
+                    w.write('\n* New IAM privs:\n```diff\n')
+                    w.write(produce_iam_diff(cur_version_str))
+                    w.write('```\n\n')
                 w.write(line)
 
 
