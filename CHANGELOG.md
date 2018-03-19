@@ -1,5 +1,7 @@
 # ChangeLog
 
+## v1.3.0
+
 ## v1.3.0-pre1
 * #[47](https://github.com/vrivellino/spoptimize/pull/47): Fix coveralls badge URL
 * #[46](https://github.com/vrivellino/spoptimize/pull/46): Quick Launch button / nested stack
