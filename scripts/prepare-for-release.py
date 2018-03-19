@@ -36,7 +36,7 @@ def gh_pull_request(pr_num):
 
 
 def produce_iam_diff(cur_version_str):
-    return subprocess.check_output(['git', 'diff', '{}...HEAD'.format(cur_version_str.split('-')[0]), 'iam-global.yml'])
+    return subprocess.check_output(['git', 'diff', '{}...HEAD'.format(cur_version_str), 'iam-global.yml'])
 
 
 def update_changelog(lines, cur_version_str, new_version_str):
@@ -65,18 +65,28 @@ def process_git_log(git_log):
     return lines
 
 
-def main(new_version_str):
-    version_str = subprocess.check_output(['git', 'describe', '--tags']).split('-')[0]
-    if not re.match(r'^v\d+[.]\d+[.]\d+', version_str):
-        print('Warning: "git describe --tags" might have a wonky output: {}'.format(version_str))
-    git_log = git_log_since_last_release(version_str)
+def main(new_version_str, cur_version_str=None):
+    if cur_version_str is None:
+        cur_version_str = subprocess.check_output(['git', 'describe', '--tags']).split('-')[0]
+    if not re.match(r'^v\d+[.]\d+[.]\d+', cur_version_str):
+        print('Warning: "git describe --tags" might have a wonky output: {}'.format(cur_version_str))
+    git_log = git_log_since_last_release(cur_version_str)
     changes = process_git_log(git_log)
-    update_changelog(changes, version_str, new_version_str)
+    update_changelog(changes, cur_version_str, new_version_str)
 
 
 if __name__ == '__main__':
     # match v1.2.3 or v1.2.3-beta1
-    if len(sys.argv) != 2 or not re.match(r'^v\d+[.]\d+[.]\d+(-\w+)?$', sys.argv[1]):
+    old_ver = None
+    new_ver = None
+    if len(sys.argv) == 2:
+        new_ver = sys.argv[1]
+    elif len(sys.argv) == 3:
+        old_ver = sys.argv[1]
+        new_ver = sys.argv[2]
+    if not new_ver or not re.match(r'^v\d+[.]\d+[.]\d+(-\w+)?$', new_ver) \
+       or (old_ver and not re.match(r'^v\d+[.]\d+[.]\d+(-\w+)?$', old_ver)):
         print('Usage: {script} NEW_VERSION'.format(script=os.path.basename(sys.argv[0])))
+        print('Usage: {script} OLD_VERSION NEW_VERSION'.format(script=os.path.basename(sys.argv[0])))
         sys.exit(2)
-    main(sys.argv[1])
+    main(new_ver, old_ver)
