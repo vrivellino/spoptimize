@@ -42,12 +42,6 @@ Screenshot of a successful execution:
 
 ## Deploying
 
-### Prerequisites
-
-- Bash 
-- [AWS CLI](https://aws.amazon.com/cli/)
-- API access to an AWS account
-
 Here's a breakdown the privileges required for deployment. Deployment requires the ability to:
   - create/update/delete:
     - CloudFormation stacks
@@ -66,9 +60,22 @@ deployment script.
 
 ### Quick Launch
 
+You can deploy Spoptimize via the CloudFormation console using the following launch button. It will deploy the
+latest build:
+
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=spoptimize&templateURL=https://s3.amazonaws.com/spoptimize-artifacts/public/latest/spoptimize.yml)
 
 ### Deployment Script
+
+If you wish to deploy Spoptimize via a shell or an automated process, you can utilize the included deploy
+script.
+
+*Prerequisites*:
+- Bash
+- [AWS CLI](https://aws.amazon.com/cli/)
+- API access to an AWS account
+
+First clone this repo, or download a tar.gz or zip from [Releases](https://github.com/vrivellino/spoptimize/releases).
 
 Deploy both the IAM stack and the Step Functions & Lambdas:
 
