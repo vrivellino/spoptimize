@@ -25,16 +25,16 @@ Each launch notification is processed by a Lambda, which in turns begins an exec
 Funcions.
 
 The Step Function execution manages the execution of Lambda functions which perform these actions:
-1. Wait following new instance launch. (See `spoptimize:init_sleep_interval` above)
+1. Wait following new instance launch. (See `spoptimize:init_sleep_interval` [below](#configuration-overrides))
 1. Verify that the new on-demand instance is healthy according to autoscaling.
 1. Request Spot Instance using specifications defined in autoscaling group's launch configuration.
 1. Wait for Spot Request to be fulfilled and for spot instance to be online. (See
-   `spoptimize:spot_req_sleep_interval` above)
+   `spoptimize:spot_req_sleep_interval` [below](#configuration-overrides))
 1. Acquire an exclusive lock on the autoscaling group. This step prevents multiple executions from attaching &
    terminating instances simultaneously.
 1. Attach spot instance to autoscaling group and terminate original on-demand instance.
 1. Wait for spot instance to be healthy according to autoscaling. (See `spoptimize:spot_attach_sleep_interval`
-   above)
+   [below](#configuration-overrides))
 1. Verify health of spot instance and release exclusive lock.
 
 Screenshot of a successful execution:
